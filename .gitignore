@@ -36,5 +36,9 @@ out/
 ### VS Code ###
 .vscode/
 
+# Local environment config
+application-local.properties
+.env
+
 # Claude Code Local Settings
 .claude/settings.local.json
