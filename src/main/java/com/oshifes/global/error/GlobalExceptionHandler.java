@@ -17,17 +17,23 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CustomException.class)
     public ResponseEntity<ApiResponse<Void>> handleCustomException(CustomException e) {
         ErrorCode errorCode = e.getErrorCode();
-        log.warn("CustomException: {}", errorCode.getMessage());
+        log.warn("CustomException: {}", errorCode.getMessage(), e);
         return ResponseEntity
                 .status(errorCode.getHttpStatus())
-                .body(ApiResponse.fail(errorCode));
+                .body(ApiResponse.fail(errorCode, e.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidationException(MethodArgumentNotValidException e) {
-        String message = e.getBindingResult().getFieldErrors().stream()
-                .map(FieldError::getDefaultMessage)
+        String message = e.getBindingResult().getAllErrors().stream()
+                .map(error -> {
+                    if (error instanceof FieldError fe) return fe.getDefaultMessage();
+                    return error.getDefaultMessage();
+                })
                 .collect(Collectors.joining(", "));
+        if (message.isBlank()) {
+            message = ErrorCode.INVALID_INPUT_VALUE.getMessage();
+        }
         log.warn("Validation failed: {}", message);
         return ResponseEntity
                 .status(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus())
