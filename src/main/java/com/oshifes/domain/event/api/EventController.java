@@ -6,10 +6,12 @@ import com.oshifes.domain.event.application.EventService;
 import com.oshifes.global.common.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/events")
@@ -19,8 +21,9 @@ public class EventController {
     private final EventService eventService;
 
     @GetMapping
-    public ApiResponse<List<EventResponse>> getEvents() {
-        return ApiResponse.ok(eventService.getEvents());
+    public ApiResponse<Page<EventResponse>> getEvents(
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ApiResponse.ok(eventService.getEvents(pageable));
     }
 
     @GetMapping("/{id}")

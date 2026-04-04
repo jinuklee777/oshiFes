@@ -11,10 +11,10 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.PrecisionModel;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @Transactional(readOnly = true)
@@ -25,10 +25,9 @@ public class EventService {
 
     private final EventRepository eventRepository;
 
-    public List<EventResponse> getEvents() {
-        return eventRepository.findAllByDeletedAtIsNull().stream()
-                .map(EventResponse::from)
-                .toList();
+    public Page<EventResponse> getEvents(Pageable pageable) {
+        return eventRepository.findAllByDeletedAtIsNull(pageable)
+                .map(EventResponse::from);
     }
 
     public EventResponse getEvent(Long id) {
@@ -39,21 +38,21 @@ public class EventService {
 
     @Transactional
     public EventResponse createEvent(EventRequest request) {
-        Point location = buildPoint(request.getLatitude(), request.getLongitude());
+        Point location = buildPoint(request.latitude(), request.longitude());
         Event event = Event.builder()
-                .title(request.getTitle())
-                .description(request.getDescription())
-                .category(request.getCategory())
-                .country(request.getCountry())
-                .startDate(request.getStartDate())
-                .endDate(request.getEndDate())
-                .venueName(request.getVenueName())
-                .address(request.getAddress())
+                .title(request.title())
+                .description(request.description())
+                .category(request.category())
+                .country(request.country())
+                .startDate(request.startDate())
+                .endDate(request.endDate())
+                .venueName(request.venueName())
+                .address(request.address())
                 .location(location)
-                .imageUrl(request.getImageUrl())
-                .sourceUrl(request.getSourceUrl())
-                .sourceType(request.getSourceType())
-                .extra(request.getExtra())
+                .imageUrl(request.imageUrl())
+                .sourceUrl(request.sourceUrl())
+                .sourceType(request.sourceType())
+                .extra(request.extra())
                 .build();
         return EventResponse.from(eventRepository.save(event));
     }
@@ -62,21 +61,23 @@ public class EventService {
     public EventResponse updateEvent(Long id, EventRequest request) {
         Event event = eventRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new CustomException(ErrorCode.EVENT_NOT_FOUND));
-        Point location = buildPoint(request.getLatitude(), request.getLongitude());
+        Point location = (request.latitude() != null && request.longitude() != null)
+                ? buildPoint(request.latitude(), request.longitude())
+                : event.getLocation();
         event.update(
-                request.getTitle(),
-                request.getDescription(),
-                request.getCategory(),
-                request.getCountry(),
-                request.getStartDate(),
-                request.getEndDate(),
-                request.getVenueName(),
-                request.getAddress(),
+                request.title(),
+                request.description(),
+                request.category(),
+                request.country(),
+                request.startDate(),
+                request.endDate(),
+                request.venueName(),
+                request.address(),
                 location,
-                request.getImageUrl(),
-                request.getSourceUrl(),
-                request.getSourceType(),
-                request.getExtra()
+                request.imageUrl(),
+                request.sourceUrl(),
+                request.sourceType(),
+                request.extra()
         );
         return EventResponse.from(event);
     }

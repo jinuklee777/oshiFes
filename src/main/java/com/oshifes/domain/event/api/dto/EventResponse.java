@@ -1,5 +1,6 @@
 package com.oshifes.domain.event.api.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.oshifes.domain.event.entity.Event;
 import lombok.Builder;
 import lombok.Getter;
@@ -26,6 +27,7 @@ public class EventResponse {
     private String sourceUrl;
     private String externalId;
     private String sourceType;
+    @JsonProperty("isAutoTranslated")
     private boolean isAutoTranslated;
     private String extra;
     private LocalDateTime createdAt;
