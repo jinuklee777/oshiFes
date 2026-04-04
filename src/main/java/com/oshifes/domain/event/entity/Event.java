@@ -2,6 +2,7 @@ package com.oshifes.domain.event.entity;
 
 import com.oshifes.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.locationtech.jts.geom.Point;
@@ -60,4 +61,48 @@ public class Event extends BaseTimeEntity {
     private String extra;
 
     private LocalDateTime deletedAt;
+
+    @Builder
+    private Event(String title, String description, String category, String country,
+                  LocalDate startDate, LocalDate endDate, String venueName, String address,
+                  Point location, String imageUrl, String sourceUrl, String externalId,
+                  String sourceType, boolean isAutoTranslated, String extra) {
+        this.title = title;
+        this.description = description;
+        this.category = category;
+        this.country = country;
+        this.startDate = startDate;
+        this.endDate = endDate;
+        this.venueName = venueName;
+        this.address = address;
+        this.location = location;
+        this.imageUrl = imageUrl;
+        this.sourceUrl = sourceUrl;
+        this.externalId = externalId;
+        this.sourceType = sourceType;
+        this.isAutoTranslated = isAutoTranslated;
+        this.extra = extra;
+    }
+
+    public void update(String title, String description, String category, String country,
+                       LocalDate startDate, LocalDate endDate, String venueName, String address,
+                       Point location, String imageUrl, String sourceUrl, String sourceType, String extra) {
+        this.title = title;
+        this.description = description;
+        this.category = category;
+        this.country = country;
+        this.startDate = startDate;
+        this.endDate = endDate;
+        this.venueName = venueName;
+        this.address = address;
+        this.location = location;
+        this.imageUrl = imageUrl;
+        this.sourceUrl = sourceUrl;
+        this.sourceType = sourceType;
+        this.extra = extra;
+    }
+
+    public void delete() {
+        this.deletedAt = LocalDateTime.now();
+    }
 }
