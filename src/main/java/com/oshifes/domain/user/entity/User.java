@@ -2,12 +2,17 @@ package com.oshifes.domain.user.entity;
 
 import com.oshifes.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import static lombok.AccessLevel.PRIVATE;
 import static lombok.AccessLevel.PROTECTED;
 
 @Getter
+@Builder
+@AllArgsConstructor(access = PRIVATE)
 @NoArgsConstructor(access = PROTECTED)
 @Entity
 @Table(name = "users")
@@ -30,4 +35,9 @@ public class User extends BaseTimeEntity {
 
     @Column(nullable = false)
     private String role;
+
+    public void updateProfile(String nickname, String profileImageUrl) {
+        this.nickname = nickname;
+        this.profileImageUrl = profileImageUrl;
+    }
 }
