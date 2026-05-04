@@ -2,7 +2,7 @@ name: Claude Assistant - Pull Request Review
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [labeled]
 
 permissions:
   contents: read
@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: prod
     timeout-minutes: 10
-    if: github.actor != 'github-actions[bot]' && github.actor != 'claude[bot]'
+    if: github.actor != 'github-actions[bot]' && github.actor != 'claude[bot]' && github.event.label.name == 'claude-final-review'
     concurrency:
       group: claude-review-${{ github.event.pull_request.number }}
       cancel-in-progress: true
@@ -30,7 +30,6 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           show_full_output: true
-          # 🌟 프롬프트 구체화: 작업 방식과 종료 조건을 명확히 지시
           prompt: |
             이 PR의 변경 사항(git diff origin/main...HEAD 등 활용)을 분석하고, 제공된 시스템 프롬프트의 지침에 따라 코드 리뷰를 진행해 주세요.
             리뷰 코멘트를 작성하여 PR에 게시한 후에는, 코드를 직접 수정하려고 시도하지 말고 즉시 작업을 완전히 종료(Exit)해 주세요.

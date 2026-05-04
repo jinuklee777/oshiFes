@@ -59,3 +59,23 @@ Database configuration belongs in `src/main/resources/application.properties`. U
 - After code changes, run the narrowest relevant test first, then `./gradlew test` when the change affects shared behavior.
 - Do not commit local DB credentials or environment-specific property files.
 - If a command fails because of local environment setup, explain the failure and the closest verification performed.
+
+## Automated Issue-to-PR Workflow
+
+This repository uses an AI-assisted workflow:
+
+1. Add `codex-ready` to a GitHub issue to let Codex implement it.
+2. Codex opens a PR after running `./gradlew test`.
+3. Codex reviews the PR when the `codex-review` label is present.
+4. Add `codex-fix` to the PR when Codex review feedback should be applied.
+5. Add `claude-final-review` after Codex feedback is handled.
+
+Agent rules for this workflow:
+
+- Always run `./gradlew test` before creating or updating an automated PR.
+- Keep PRs focused on the linked issue.
+- Do not auto-merge.
+- Do not modify local-only configuration or secrets.
+- Do not commit production credentials or environment-specific property files.
+- When addressing Codex review feedback, only fix valid findings related to the PR diff.
+- If review feedback is incorrect or risky, leave the code unchanged and explain why in the PR.
