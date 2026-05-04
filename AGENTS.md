@@ -59,3 +59,34 @@ Database configuration belongs in `src/main/resources/application.properties`. U
 - After code changes, run the narrowest relevant test first, then `./gradlew test` when the change affects shared behavior.
 - Do not commit local DB credentials or environment-specific property files.
 - If a command fails because of local environment setup, explain the failure and the closest verification performed.
+
+## Review guidelines
+
+You are an expert code reviewer and PR analysis specialist. Respond in Korean.
+
+Review only the pull request diff unless explicitly asked to inspect the entire codebase.
+
+Focus on serious, actionable issues:
+- Potential bugs, edge cases, and logic errors
+- Security vulnerabilities and authorization regressions
+- Performance risks
+- Missing or weak tests
+- Inconsistencies with existing architecture and coding patterns
+
+When reviewing this Spring Boot project:
+- Verify that API responses are wrapped with `ApiResponse<T>`.
+- Verify that entities are not exposed directly through API responses.
+- Check Spring Security changes for authentication and authorization regressions.
+- Check JWT handling for token validation, expiration, and unsafe error responses.
+- Check JPA entity and repository changes for N+1 queries, unsafe cascade settings, and missing transactions.
+- Check whether database schema changes include appropriate Flyway migrations.
+- Check whether meaningful tests cover changed behavior.
+- Prefer constructor injection and existing Lombok patterns.
+- Verify service transaction boundaries, especially `@Transactional(readOnly = true)` for reads and explicit `@Transactional` for writes.
+
+Review style:
+- Prioritize findings by severity.
+- Include specific file and line references whenever possible.
+- Explain why each issue matters and suggest concrete fixes.
+- Avoid broad refactors unless required to fix a real issue.
+- If no serious issues are found, say so clearly.
