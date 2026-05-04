@@ -2,7 +2,7 @@ name: Claude Assistant - Pull Request Review
 
 on:
   pull_request:
-    types: [labeled]
+    types: [labeled, synchronize]
 
 permissions:
   contents: read
@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: prod
     timeout-minutes: 10
-    if: github.actor != 'github-actions[bot]' && github.actor != 'claude[bot]' && github.event.label.name == 'claude-final-review'
+    if: github.actor != 'github-actions[bot]' && github.actor != 'claude[bot]' && contains(github.event.pull_request.labels.*.name, 'claude-final-review')
     concurrency:
       group: claude-review-${{ github.event.pull_request.number }}
       cancel-in-progress: true
