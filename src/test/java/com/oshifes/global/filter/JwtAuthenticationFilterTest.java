@@ -1,7 +1,9 @@
 package com.oshifes.global.filter;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oshifes.global.security.JwtTokenProvider;
 import com.oshifes.global.security.UserPrincipal;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.AfterEach;
@@ -22,7 +24,7 @@ class JwtAuthenticationFilterTest {
             "dGVzdC1zZWNyZXQta2V5LWZvci10ZXN0aW5nLW9ubHktbm90LWZvci1wcm9kdWN0aW9u";
 
     private final JwtTokenProvider jwtTokenProvider = new JwtTokenProvider(SECRET, 60_000);
-    private final JwtAuthenticationFilter filter = new JwtAuthenticationFilter(jwtTokenProvider);
+    private final JwtAuthenticationFilter filter = new JwtAuthenticationFilter(jwtTokenProvider, new ObjectMapper());
 
     @AfterEach
     void tearDown() {
@@ -47,6 +49,20 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
+    void doFilterInternal_validCookieToken_setsAuthentication() throws ServletException, IOException {
+        String token = jwtTokenProvider.generateToken(1L, "USER");
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setCookies(new Cookie("access_token", token));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilterInternal(request, response, new MockFilterChain());
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        assertThat(authentication).isNotNull();
+        assertThat(((UserPrincipal) authentication.getPrincipal()).getUserId()).isEqualTo(1L);
+    }
+
+    @Test
     void doFilterInternal_invalidToken_returnsUnauthorized() throws ServletException, IOException {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.addHeader("Authorization", "Bearer invalid.token.value");
@@ -55,6 +71,9 @@ class JwtAuthenticationFilterTest {
         filter.doFilterInternal(request, response, new MockFilterChain());
 
         assertThat(response.getStatus()).isEqualTo(HttpServletResponse.SC_UNAUTHORIZED);
+        assertThat(response.getContentType()).startsWith("application/json");
+        assertThat(response.getContentAsString()).contains("\"success\":false");
+        assertThat(response.getContentAsString()).contains("\"errorCode\":\"COMMON-004\"");
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     }
 

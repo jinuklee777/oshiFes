@@ -15,7 +15,7 @@ class JwtTokenProviderTest {
         JwtTokenProvider jwtTokenProvider = new JwtTokenProvider(SECRET, 60_000);
 
         String token = jwtTokenProvider.generateToken(1L, "USER");
-        Claims claims = jwtTokenProvider.parseClaims(token);
+        Claims claims = jwtTokenProvider.parseClaimsOrNull(token);
 
         assertThat(claims.getSubject()).isEqualTo("1");
         assertThat(claims.get("role", String.class)).isEqualTo("USER");

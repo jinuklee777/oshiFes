@@ -1,6 +1,7 @@
 package com.oshifes.global.security;
 
 import com.oshifes.domain.user.entity.User;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
@@ -13,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 @Getter
-@RequiredArgsConstructor
+@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public class UserPrincipal implements OAuth2User, UserDetails {
 
     private final Long userId;
@@ -22,6 +23,10 @@ public class UserPrincipal implements OAuth2User, UserDetails {
 
     public static UserPrincipal of(User user, Map<String, Object> attributes) {
         return new UserPrincipal(user.getId(), user.getRole().name(), attributes);
+    }
+
+    public static UserPrincipal of(Long userId, String role, Map<String, Object> attributes) {
+        return new UserPrincipal(userId, role, attributes);
     }
 
     @Override

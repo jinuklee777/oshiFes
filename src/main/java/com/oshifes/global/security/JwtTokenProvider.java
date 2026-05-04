@@ -36,7 +36,7 @@ public class JwtTokenProvider {
                 .compact();
     }
 
-    public Claims parseClaims(String token) {
+    private Claims parseClaims(String token) {
         return Jwts.parser()
                 .verifyWith(key)
                 .build()

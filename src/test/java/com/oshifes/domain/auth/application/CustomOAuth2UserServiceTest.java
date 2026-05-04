@@ -15,6 +15,7 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestTemplate;
@@ -23,6 +24,7 @@ import java.time.Instant;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -76,6 +78,16 @@ class CustomOAuth2UserServiceTest {
         server.verify();
     }
 
+    @Test
+    void loadUser_missingProviderId_throwsException() {
+        MockRestServiceServer server = configureOAuth2UserInfoResponseWithoutSub();
+
+        assertThatThrownBy(() -> customOAuth2UserService.loadUser(oAuth2UserRequest()))
+                .isInstanceOf(OAuth2AuthenticationException.class);
+        verify(userRepository, never()).findByProviderAndProviderId(any(), any());
+        server.verify();
+    }
+
     private MockRestServiceServer configureOAuth2UserInfoResponse() {
         RestTemplate restTemplate = new RestTemplate();
         customOAuth2UserService.setRestOperations(restTemplate);
@@ -84,6 +96,20 @@ class CustomOAuth2UserServiceTest {
                 .andRespond(withSuccess("""
                         {
                           "sub": "provider-id",
+                          "name": "Tester",
+                          "picture": "https://example.com/profile.png"
+                        }
+                        """, MediaType.APPLICATION_JSON));
+        return server;
+    }
+
+    private MockRestServiceServer configureOAuth2UserInfoResponseWithoutSub() {
+        RestTemplate restTemplate = new RestTemplate();
+        customOAuth2UserService.setRestOperations(restTemplate);
+        MockRestServiceServer server = MockRestServiceServer.createServer(restTemplate);
+        server.expect(requestTo(USER_INFO_URI))
+                .andRespond(withSuccess("""
+                        {
                           "name": "Tester",
                           "picture": "https://example.com/profile.png"
                         }
