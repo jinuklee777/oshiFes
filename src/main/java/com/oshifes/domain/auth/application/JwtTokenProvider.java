@@ -44,12 +44,11 @@ public class JwtTokenProvider {
                 .getPayload();
     }
 
-    public boolean isValid(String token) {
+    public Claims parseClaimsOrNull(String token) {
         try {
-            parseClaims(token);
-            return true;
+            return parseClaims(token);
         } catch (JwtException | IllegalArgumentException e) {
-            return false;
+            return null;
         }
     }
 }

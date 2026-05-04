@@ -2,6 +2,7 @@ package com.oshifes.domain.auth.application;
 
 import com.oshifes.domain.user.dao.UserRepository;
 import com.oshifes.domain.user.entity.User;
+import com.oshifes.domain.user.entity.UserRole;
 import com.oshifes.global.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
@@ -15,6 +16,7 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private final UserRepository userRepository;
@@ -28,8 +30,8 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         Map<String, Object> attributes = oAuth2User.getAttributes();
 
         String providerId = (String) attributes.get("sub");
-        String nickname = (String) attributes.get("name");
-        String profileImageUrl = (String) attributes.get("picture");
+        String nickname = (String) attributes.getOrDefault("name", "Unknown");
+        String profileImageUrl = (String) attributes.getOrDefault("picture", "");
 
         User user = userRepository.findByProviderAndProviderId(provider, providerId)
                 .map(existing -> {
@@ -42,7 +44,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                                 .providerId(providerId)
                                 .nickname(nickname)
                                 .profileImageUrl(profileImageUrl)
-                                .role("USER")
+                                .role(UserRole.USER.name())
                                 .build()
                 ));
 
