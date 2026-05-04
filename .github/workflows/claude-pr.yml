@@ -2,7 +2,7 @@ name: Claude Assistant - Pull Request Review
 
 on:
   pull_request:
-    types: [opened, synchronize]  # 코드가 처음 올라오거나, 새로 푸시될 때만 작동
+    types: [opened, synchronize]
 
 permissions:
   contents: read
@@ -13,12 +13,16 @@ jobs:
   claude-response:
     runs-on: ubuntu-latest
     environment: prod
-    timeout-minutes: 10  # 🌟 무한 루프 방지: 10분이 넘어가면 강제 종료 (비용 절약)
+    timeout-minutes: 10
+    if: github.actor != 'github-actions[bot]' && github.actor != 'claude[bot]'
+    concurrency:
+      group: claude-review-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # 전체 히스토리 클론 (0으로 설정)
+          fetch-depth: 0
 
       - name: Run Claude Code Action
         uses: anthropics/claude-code-action@v1

@@ -13,11 +13,15 @@ jobs:
   claude-response:
     runs-on: ubuntu-latest
     environment: prod
+    if: github.actor != 'github-actions[bot]' && github.actor != 'claude[bot]' && github.event.comment.user.type != 'Bot'
+    concurrency:
+      group: claude-comment-${{ github.event.issue.number }}
+      cancel-in-progress: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 전체 히스토리 클론 (0으로 설정)
+          fetch-depth: 0
 
       - name: Run Claude Code Action
         uses: anthropics/claude-code-action@v1
