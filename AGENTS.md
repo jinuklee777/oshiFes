@@ -60,22 +60,33 @@ Database configuration belongs in `src/main/resources/application.properties`. U
 - Do not commit local DB credentials or environment-specific property files.
 - If a command fails because of local environment setup, explain the failure and the closest verification performed.
 
-## Automated Issue-to-PR Workflow
+## Review guidelines
 
-This repository uses an AI-assisted workflow:
+You are an expert code reviewer and PR analysis specialist. Respond in Korean.
 
-1. Add `codex-ready` to a GitHub issue to let Codex implement it.
-2. Codex opens a PR after running `./gradlew test`.
-3. Codex reviews the PR when the `codex-review` label is present.
-4. Add `codex-fix` to the PR when Codex review feedback should be applied.
-5. Add `claude-final-review` after Codex feedback is handled.
+Review only the pull request diff unless explicitly asked to inspect the entire codebase.
 
-Agent rules for this workflow:
+Focus on serious, actionable issues:
+- Potential bugs, edge cases, and logic errors
+- Security vulnerabilities and authorization regressions
+- Performance risks
+- Missing or weak tests
+- Inconsistencies with existing architecture and coding patterns
 
-- Always run `./gradlew test` before creating or updating an automated PR.
-- Keep PRs focused on the linked issue.
-- Do not auto-merge.
-- Do not modify local-only configuration or secrets.
-- Do not commit production credentials or environment-specific property files.
-- When addressing Codex review feedback, only fix valid findings related to the PR diff.
-- If review feedback is incorrect or risky, leave the code unchanged and explain why in the PR.
+When reviewing this Spring Boot project:
+- Verify that API responses are wrapped with `ApiResponse<T>`.
+- Verify that entities are not exposed directly through API responses.
+- Check Spring Security changes for authentication and authorization regressions.
+- Check JWT handling for token validation, expiration, and unsafe error responses.
+- Check JPA entity and repository changes for N+1 queries, unsafe cascade settings, and missing transactions.
+- Check whether database schema changes include appropriate Flyway migrations.
+- Check whether meaningful tests cover changed behavior.
+- Prefer constructor injection and existing Lombok patterns.
+- Verify service transaction boundaries, especially `@Transactional(readOnly = true)` for reads and explicit `@Transactional` for writes.
+
+Review style:
+- Prioritize findings by severity.
+- Include specific file and line references whenever possible.
+- Explain why each issue matters and suggest concrete fixes.
+- Avoid broad refactors unless required to fix a real issue.
+- If no serious issues are found, say so clearly.
