@@ -2,9 +2,10 @@ package com.oshifes.global.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oshifes.global.security.JwtTokenProvider;
+import com.oshifes.global.security.SecurityErrorResponseWriter;
 import com.oshifes.global.security.UserPrincipal;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,10 @@ class JwtAuthenticationFilterTest {
             "dGVzdC1zZWNyZXQta2V5LWZvci10ZXN0aW5nLW9ubHktbm90LWZvci1wcm9kdWN0aW9u";
 
     private final JwtTokenProvider jwtTokenProvider = new JwtTokenProvider(SECRET, 60_000);
-    private final JwtAuthenticationFilter filter = new JwtAuthenticationFilter(jwtTokenProvider, new ObjectMapper());
+    private final JwtAuthenticationFilter filter = new JwtAuthenticationFilter(
+            jwtTokenProvider,
+            new SecurityErrorResponseWriter(new ObjectMapper())
+    );
 
     @AfterEach
     void tearDown() {
