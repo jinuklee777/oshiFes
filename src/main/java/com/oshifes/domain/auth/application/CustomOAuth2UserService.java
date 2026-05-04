@@ -39,13 +39,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                     return existing;
                 })
                 .orElseGet(() -> userRepository.save(
-                        User.builder()
-                                .provider(provider)
-                                .providerId(providerId)
-                                .nickname(nickname)
-                                .profileImageUrl(profileImageUrl)
-                                .role(UserRole.USER.name())
-                                .build()
+                        User.createNewUser(provider, providerId, nickname, profileImageUrl, UserRole.USER)
                 ));
 
         return UserPrincipal.of(user, attributes);

@@ -43,6 +43,13 @@ public class SecurityConfig {
                         .userInfoEndpoint(userInfo ->
                                 userInfo.userService(customOAuth2UserService))
                         .successHandler(oauth2SuccessHandler)
+                        .failureHandler((request, response, e) -> {
+                            response.setStatus(ErrorCode.UNAUTHORIZED.getHttpStatus().value());
+                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+                            response.getWriter().write(
+                                    objectMapper.writeValueAsString(ApiResponse.fail(ErrorCode.UNAUTHORIZED)));
+                        })
                 )
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, e) -> {

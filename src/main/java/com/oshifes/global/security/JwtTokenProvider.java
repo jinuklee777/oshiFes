@@ -1,4 +1,4 @@
-package com.oshifes.domain.auth.application;
+package com.oshifes.global.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;

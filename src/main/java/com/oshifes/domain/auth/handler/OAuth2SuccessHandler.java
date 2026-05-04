@@ -1,6 +1,6 @@
 package com.oshifes.domain.auth.handler;
 
-import com.oshifes.domain.auth.application.JwtTokenProvider;
+import com.oshifes.global.security.JwtTokenProvider;
 import com.oshifes.global.security.UserPrincipal;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -29,7 +29,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         String token = jwtTokenProvider.generateToken(principal.getUserId(), principal.getRole());
 
         String targetUrl = UriComponentsBuilder.fromUriString(redirectUri)
-                .fragment("token=" + token)
+                .queryParam("token", token)
                 .build().toUriString();
 
         getRedirectStrategy().sendRedirect(request, response, targetUrl);

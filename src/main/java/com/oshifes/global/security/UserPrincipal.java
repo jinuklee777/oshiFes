@@ -21,7 +21,7 @@ public class UserPrincipal implements OAuth2User, UserDetails {
     private final Map<String, Object> attributes;
 
     public static UserPrincipal of(User user, Map<String, Object> attributes) {
-        return new UserPrincipal(user.getId(), user.getRole(), attributes);
+        return new UserPrincipal(user.getId(), user.getRole().name(), attributes);
     }
 
     @Override

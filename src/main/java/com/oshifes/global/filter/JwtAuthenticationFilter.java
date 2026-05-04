@@ -1,6 +1,6 @@
 package com.oshifes.global.filter;
 
-import com.oshifes.domain.auth.application.JwtTokenProvider;
+import com.oshifes.global.security.JwtTokenProvider;
 import com.oshifes.global.security.UserPrincipal;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
@@ -28,6 +28,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         String token = resolveToken(request);
         Claims claims = token != null ? jwtTokenProvider.parseClaimsOrNull(token) : null;
+
+        if (token != null && claims == null) {
+            SecurityContextHolder.clearContext();
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
+        }
 
         if (claims != null) {
             Long userId = Long.parseLong(claims.getSubject());
