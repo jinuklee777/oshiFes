@@ -2,7 +2,7 @@ name: Claude Assistant - Issue Review
 
 on:
   issues:
-    types: [labeled]  # 라벨 달았을때
+    types: [labeled]
 
 permissions:
   issues: write
@@ -13,11 +13,15 @@ jobs:
   claude-response:
     runs-on: ubuntu-latest
     environment: prod
+    if: github.actor != 'github-actions[bot]' && github.event.label.name == 'claude-review'
+    concurrency:
+      group: claude-issue-${{ github.event.issue.number }}
+      cancel-in-progress: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 전체 히스토리 클론 (0으로 설정)
+          fetch-depth: 0
 
       - name: Run Claude Code Action
         uses: anthropics/claude-code-action@v1
