@@ -1,9 +1,11 @@
 package com.oshifes.global.error;
 
 import com.oshifes.global.common.ApiResponse;
+import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.context.MessageSourceResolvable;
 import org.springframework.validation.FieldError;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -33,27 +35,15 @@ public class GlobalExceptionHandler {
                     return error.getDefaultMessage();
                 })
                 .collect(Collectors.joining(", "));
-        if (message.isBlank()) {
-            message = ErrorCode.INVALID_INPUT_VALUE.getMessage();
-        }
-        log.warn("Validation failed: {}", message);
-        return ResponseEntity
-                .status(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus())
-                .body(ApiResponse.fail(ErrorCode.INVALID_INPUT_VALUE, message));
+        return validationErrorResponse(message);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleConstraintViolationException(ConstraintViolationException e) {
         String message = e.getConstraintViolations().stream()
-                .map(violation -> violation.getMessage())
+                .map(ConstraintViolation::getMessage)
                 .collect(Collectors.joining(", "));
-        if (message.isBlank()) {
-            message = ErrorCode.INVALID_INPUT_VALUE.getMessage();
-        }
-        log.warn("Constraint validation failed: {}", message);
-        return ResponseEntity
-                .status(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus())
-                .body(ApiResponse.fail(ErrorCode.INVALID_INPUT_VALUE, message));
+        return validationErrorResponse(message);
     }
 
     @ExceptionHandler(HandlerMethodValidationException.class)
@@ -61,12 +51,16 @@ public class GlobalExceptionHandler {
             HandlerMethodValidationException e) {
         String message = e.getParameterValidationResults().stream()
                 .flatMap(result -> result.getResolvableErrors().stream())
-                .map(error -> error.getDefaultMessage())
+                .map(MessageSourceResolvable::getDefaultMessage)
                 .collect(Collectors.joining(", "));
+        return validationErrorResponse(message);
+    }
+
+    private ResponseEntity<ApiResponse<Void>> validationErrorResponse(String message) {
         if (message.isBlank()) {
             message = ErrorCode.INVALID_INPUT_VALUE.getMessage();
         }
-        log.warn("Handler method validation failed: {}", message);
+        log.warn("Validation failed: {}", message);
         return ResponseEntity
                 .status(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus())
                 .body(ApiResponse.fail(ErrorCode.INVALID_INPUT_VALUE, message));

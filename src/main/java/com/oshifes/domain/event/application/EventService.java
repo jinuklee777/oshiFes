@@ -4,12 +4,10 @@ import com.oshifes.domain.event.api.dto.EventRequest;
 import com.oshifes.domain.event.api.dto.EventResponse;
 import com.oshifes.domain.event.api.dto.EventSearchCondition;
 import com.oshifes.domain.event.dao.EventRepository;
+import com.oshifes.domain.event.dao.EventSpecifications;
 import com.oshifes.domain.event.entity.Event;
-import com.oshifes.domain.event.entity.EventIp;
 import com.oshifes.global.error.CustomException;
 import com.oshifes.global.error.ErrorCode;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Subquery;
 import lombok.RequiredArgsConstructor;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -17,16 +15,8 @@ import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-
-import java.time.LocalDate;
-import java.time.YearMonth;
-import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
-import java.util.List;
 
 @Service
 @Transactional(readOnly = true)
@@ -38,7 +28,7 @@ public class EventService {
     private final EventRepository eventRepository;
 
     public Page<EventResponse> getEvents(EventSearchCondition condition, Pageable pageable) {
-        return eventRepository.findAll(buildSearchSpecification(condition), pageable)
+        return eventRepository.findAll(EventSpecifications.withCondition(condition), pageable)
                 .map(EventResponse::from);
     }
 
@@ -106,58 +96,5 @@ public class EventService {
             return null;
         }
         return GEOMETRY_FACTORY.createPoint(new Coordinate(longitude, latitude));
-    }
-
-    private Specification<Event> buildSearchSpecification(EventSearchCondition condition) {
-        YearMonth yearMonth = StringUtils.hasText(condition.month()) ? parseYearMonth(condition.month()) : null;
-
-        return (root, query, criteriaBuilder) -> {
-            List<Predicate> predicates = new ArrayList<>();
-            predicates.add(criteriaBuilder.isNull(root.get("deletedAt")));
-
-            if (StringUtils.hasText(condition.country())) {
-                predicates.add(criteriaBuilder.equal(root.get("country"), condition.country().trim()));
-            }
-
-            if (StringUtils.hasText(condition.category())) {
-                predicates.add(criteriaBuilder.equal(root.get("category"), condition.category().trim()));
-            }
-
-            if (yearMonth != null) {
-                LocalDate firstDay = yearMonth.atDay(1);
-                LocalDate lastDay = yearMonth.atEndOfMonth();
-
-                predicates.add(criteriaBuilder.isNotNull(root.get("startDate")));
-                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("startDate"), lastDay));
-                predicates.add(criteriaBuilder.or(
-                        criteriaBuilder.greaterThanOrEqualTo(root.get("endDate"), firstDay),
-                        criteriaBuilder.and(
-                                criteriaBuilder.isNull(root.get("endDate")),
-                                criteriaBuilder.greaterThanOrEqualTo(root.get("startDate"), firstDay)
-                        )
-                ));
-            }
-
-            if (condition.ipId() != null) {
-                Subquery<Long> subquery = query.subquery(Long.class);
-                var eventIp = subquery.from(EventIp.class);
-                subquery.select(eventIp.get("event").get("id"))
-                        .where(
-                                criteriaBuilder.equal(eventIp.get("event"), root),
-                                criteriaBuilder.equal(eventIp.get("ipTitle").get("id"), condition.ipId())
-                        );
-                predicates.add(criteriaBuilder.exists(subquery));
-            }
-
-            return criteriaBuilder.and(predicates.toArray(Predicate[]::new));
-        };
-    }
-
-    private YearMonth parseYearMonth(String month) {
-        try {
-            return YearMonth.parse(month.trim());
-        } catch (DateTimeParseException e) {
-            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE, "month는 yyyy-MM 형식이어야 합니다.");
-        }
     }
 }
