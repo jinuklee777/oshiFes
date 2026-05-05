@@ -6,7 +6,6 @@ import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.context.MessageSourceResolvable;
-import org.springframework.validation.FieldError;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -30,10 +29,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidationException(MethodArgumentNotValidException e) {
         String message = e.getBindingResult().getAllErrors().stream()
-                .map(error -> {
-                    if (error instanceof FieldError fe) return fe.getDefaultMessage();
-                    return error.getDefaultMessage();
-                })
+                .map(MessageSourceResolvable::getDefaultMessage)
                 .collect(Collectors.joining(", "));
         return validationErrorResponse(message);
     }

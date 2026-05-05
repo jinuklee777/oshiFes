@@ -1,6 +1,6 @@
 package com.oshifes.domain.event.dao;
 
-import com.oshifes.domain.event.api.dto.EventSearchCondition;
+import com.oshifes.domain.event.application.dto.EventSearchCondition;
 import com.oshifes.domain.event.entity.Event;
 import com.oshifes.domain.event.entity.EventIp;
 import com.oshifes.global.error.CustomException;
@@ -69,6 +69,7 @@ public final class EventSpecifications {
 
     private static YearMonth parseYearMonth(String month) {
         try {
+            // Controller validation catches user input first; this guards direct service calls.
             return YearMonth.parse(month.trim());
         } catch (DateTimeParseException e) {
             throw new CustomException(ErrorCode.INVALID_INPUT_VALUE, "month는 yyyy-MM 형식의 유효한 연-월이어야 합니다.");

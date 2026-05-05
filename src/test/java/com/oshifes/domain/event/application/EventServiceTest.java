@@ -2,7 +2,7 @@ package com.oshifes.domain.event.application;
 
 import com.oshifes.domain.event.api.dto.EventRequest;
 import com.oshifes.domain.event.api.dto.EventResponse;
-import com.oshifes.domain.event.api.dto.EventSearchCondition;
+import com.oshifes.domain.event.application.dto.EventSearchCondition;
 import com.oshifes.domain.event.dao.EventRepository;
 import com.oshifes.domain.event.entity.Event;
 import com.oshifes.global.error.CustomException;

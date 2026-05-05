@@ -2,9 +2,9 @@ package com.oshifes.domain.event.api;
 
 import com.oshifes.domain.event.api.dto.EventRequest;
 import com.oshifes.domain.event.api.dto.EventResponse;
-import com.oshifes.domain.event.api.dto.EventSearchCondition;
+import com.oshifes.domain.event.application.dto.EventSearchCondition;
 import com.oshifes.domain.event.application.EventService;
-import com.oshifes.domain.event.entity.EventCountry;
+import com.oshifes.domain.event.validation.ValidEventCountry;
 import com.oshifes.global.common.ApiResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
@@ -28,7 +28,7 @@ public class EventController {
 
     @GetMapping
     public ApiResponse<Page<EventResponse>> getEvents(
-            @Pattern(regexp = EventCountry.REGEXP, message = EventCountry.VALIDATION_MESSAGE)
+            @ValidEventCountry
             @RequestParam(required = false) String country,
             @Pattern(regexp = "^[a-z][a-z0-9_-]{0,30}$", message = "category는 영문 소문자, 숫자, -, _만 사용할 수 있습니다.")
             @RequestParam(required = false) String category,
