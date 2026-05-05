@@ -117,7 +117,14 @@ jobs:
               return;
             }
 
-            const parsed = JSON.parse(output);
+            let parsed;
+            try {
+              parsed = JSON.parse(output);
+            } catch (error) {
+              core.setFailed(`Claude structured_output JSON parse failed: ${error.message}`);
+              return;
+            }
+
             const body = parsed.review_body?.trim();
 
             if (!body) {
