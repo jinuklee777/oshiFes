@@ -2,6 +2,7 @@ package com.oshifes.domain.event.api;
 
 import com.oshifes.domain.event.api.dto.EventRequest;
 import com.oshifes.domain.event.api.dto.EventResponse;
+import com.oshifes.domain.event.api.dto.EventSearchCondition;
 import com.oshifes.domain.event.application.EventService;
 import com.oshifes.global.common.ApiResponse;
 import jakarta.validation.Valid;
@@ -23,8 +24,13 @@ public class EventController {
 
     @GetMapping
     public ApiResponse<Page<EventResponse>> getEvents(
+            @RequestParam(required = false) String country,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String month,
+            @RequestParam(required = false) Long ipId,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return ApiResponse.ok(eventService.getEvents(pageable));
+        EventSearchCondition condition = new EventSearchCondition(country, category, month, ipId);
+        return ApiResponse.ok(eventService.getEvents(condition, pageable));
     }
 
     @GetMapping("/{id}")
