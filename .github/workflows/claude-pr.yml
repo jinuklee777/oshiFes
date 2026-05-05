@@ -18,6 +18,7 @@ jobs:
     concurrency:
       group: claude-review-${{ github.event.pull_request.number }}
       cancel-in-progress: true
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -25,40 +26,52 @@ jobs:
           fetch-depth: 0
 
       - name: Run Claude Code Action
+        id: claude_review
         uses: anthropics/claude-code-action@v1
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           show_full_output: true
           prompt: |
             이 PR의 변경 사항(git diff origin/main...HEAD 등 활용)을 분석하고, 제공된 시스템 프롬프트의 지침에 따라 코드 리뷰를 진행해 주세요.
-            파일을 생성하거나 수정하지 말고, .claude 디렉터리 또는 settings 파일을 읽거나 만들지 마세요.
-            리뷰 게시에는 반드시 `gh pr review ${{ github.event.pull_request.number }} --comment --body "..."` 형식만 사용하세요.
-            리뷰 코멘트를 작성하여 PR에 게시한 후에는, 코드를 직접 수정하려고 시도하지 말고 즉시 작업을 완전히 종료(Exit)해 주세요.
+
+            반드시 지켜야 할 규칙:
+            - 코드를 직접 수정하지 마세요.
+            - 파일을 생성하거나 수정하지 마세요.
+            - PR에 직접 댓글이나 리뷰를 게시하지 마세요.
+            - gh pr review, gh pr comment 명령을 실행하지 마세요.
+            - Skill 도구, /review 명령, 내장 review skill을 사용하지 마세요.
+            - 최종 응답은 JSON schema의 review_body 필드에 담길 PR 리뷰 본문이어야 합니다.
+
           claude_args: |
             --model sonnet
-            --allowedTools "Bash(git diff*),Bash(git log*),Bash(git show*),Bash(gh pr view*),Bash(gh pr diff*),Bash(gh pr review*)"
+            --allowedTools "Bash(git diff*),Bash(git log*),Bash(git show*),Bash(gh pr view*),Bash(gh pr diff*)"
+            --disallowedTools "Skill,Write,Edit,NotebookEdit,Task"
+            --json-schema '{"type":"object","properties":{"review_body":{"type":"string","description":"Korean pull request review body in Markdown"}},"required":["review_body"],"additionalProperties":false}'
             --system-prompt "
             당신은 코드 전문가이며 PR 분석 전문 리뷰어입니다. 
             코드 변경 사항에 대해 철저하고 건설적이며 실행 가능한 피드백을 제공하는 것이 여러분의 역할입니다.
             git branch checkout은 허용하지 않습니다.
+            PR에 직접 댓글이나 리뷰를 게시하지 마세요. 리뷰 본문은 반드시 JSON schema의 review_body 필드로만 반환하세요.
             파일 생성, 파일 수정, .claude 디렉터리 탐색, settings 파일 조회는 금지합니다.
-            PR 리뷰 게시에는 반드시 gh pr review 명령만 사용하고, gh pr comment 또는 임시 파일 생성 방식은 사용하지 마세요.
+            Skill 도구, /review 명령, 내장 review skill은 절대 사용하지 마세요.
+
             1. **코드 품질 분석**
                - 잠재적 버그, 예외 사례 또는 논리 오류를 식별
                - 변경 사항이 성능에 미치는 영향을 평가
                - 보안 취약성 또는 위험을 평가
+
             2. **건설적인 피드백 제공**
                - 잘된 부분에 대한 긍정적인 관찰로 시작
                - 특정 줄 참조에서 발견된 문제점을 명확하게 설명
                - 코드 예시를 통해 문제점을 해결할 수 있는 구체적인 개선 사항을 제안
                - 변경이 필요한 부분에서는 심각도(🔴반드시 변경 필요, 🟡변경 권장, 🟢개선 제안)에 따라 피드백의 우선순위를 지정
+
             3. **맥락 고려**
                - 변경 사항의 목적과 범위를 이해
                - 구현이 명시된 목표와 일치하는지 평가
                - 코드베이스의 다른 부분에 대한 잠재적 영향을 확인
+
             4. **리뷰 구성**
                - ✅ 긍정적인 부분
                - ⚠️ 변경이 필요한 부분
@@ -67,19 +80,55 @@ jobs:
                  [중요도 순으로 파일별 상세 변경사항 리뷰와 해당하는 코드 링크]
                - 💪 추가 권장 사항
                  [PR 변경사항에 대해 변경 강조해야 할 부분 중요도 순으로 제시]
-            전체 코드베이스를 검토하라는 명시적인 요청을 받지 않는 한, 최근 수정된 코드에 집중
-            항상 전문적이고 도움이 되는 어조를 유지하여 학습과 개선을 장려
-            완전한 리뷰를 제공하기 위해 더 많은 맥락이나 정보가 필요한 경우, 사전에 명확한 설명을 요청
-            항상 리뷰 코멘트 형식을 따르고 리뷰를 해당 PR에 게시해야 합니다.
+
+            전체 코드베이스를 검토하라는 명시적인 요청을 받지 않는 한, 최근 수정된 코드에 집중하세요.
+            항상 전문적이고 도움이 되는 어조를 유지하여 학습과 개선을 장려하세요.
+            완전한 리뷰를 제공하기 위해 더 많은 맥락이나 정보가 필요한 경우, 사전에 명확한 설명을 요청하세요.
+            항상 리뷰 코멘트 형식을 따르세요.
+
             ### 리뷰 코멘트 형식:
             ## 🤖 자동 PR 리뷰
+
             ### ✅ 긍정적인 부분
             - [구체적인 장점들]
+
             ### ⚠️ 변경이 필요한 부분
             - [변경이 필요한 부분들]
+
             ### 🔍 상세 리뷰
             #### 파일별 리뷰
             - **[파일명]**: [상세 리뷰 내용 및 파일 링크]
+
             ### 💪 추가 권장 사항
             - [PR 변경사항에 대해 변경 강조해야 할 부분 중요도 순으로 제시]
             "
+
+      - name: Post Claude PR review
+        uses: actions/github-script@v7
+        env:
+          CLAUDE_STRUCTURED_OUTPUT: ${{ steps.claude_review.outputs.structured_output }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const output = process.env.CLAUDE_STRUCTURED_OUTPUT;
+
+            if (!output) {
+              core.setFailed("Claude structured_output is empty.");
+              return;
+            }
+
+            const parsed = JSON.parse(output);
+            const body = parsed.review_body?.trim();
+
+            if (!body) {
+              core.setFailed("Claude review_body is empty.");
+              return;
+            }
+
+            await github.rest.pulls.createReview({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              event: "COMMENT",
+              body,
+            });
