@@ -1,9 +1,11 @@
 package com.oshifes.global.error;
 
 import com.oshifes.global.common.ApiResponse;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -35,6 +37,36 @@ public class GlobalExceptionHandler {
             message = ErrorCode.INVALID_INPUT_VALUE.getMessage();
         }
         log.warn("Validation failed: {}", message);
+        return ResponseEntity
+                .status(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus())
+                .body(ApiResponse.fail(ErrorCode.INVALID_INPUT_VALUE, message));
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleConstraintViolationException(ConstraintViolationException e) {
+        String message = e.getConstraintViolations().stream()
+                .map(violation -> violation.getMessage())
+                .collect(Collectors.joining(", "));
+        if (message.isBlank()) {
+            message = ErrorCode.INVALID_INPUT_VALUE.getMessage();
+        }
+        log.warn("Constraint validation failed: {}", message);
+        return ResponseEntity
+                .status(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus())
+                .body(ApiResponse.fail(ErrorCode.INVALID_INPUT_VALUE, message));
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleHandlerMethodValidationException(
+            HandlerMethodValidationException e) {
+        String message = e.getParameterValidationResults().stream()
+                .flatMap(result -> result.getResolvableErrors().stream())
+                .map(error -> error.getDefaultMessage())
+                .collect(Collectors.joining(", "));
+        if (message.isBlank()) {
+            message = ErrorCode.INVALID_INPUT_VALUE.getMessage();
+        }
+        log.warn("Handler method validation failed: {}", message);
         return ResponseEntity
                 .status(ErrorCode.INVALID_INPUT_VALUE.getHttpStatus())
                 .body(ApiResponse.fail(ErrorCode.INVALID_INPUT_VALUE, message));
