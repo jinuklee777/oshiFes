@@ -1,6 +1,5 @@
 package com.oshifes.domain.event.dao;
 
-import com.oshifes.domain.event.application.dto.EventSearchCondition;
 import com.oshifes.domain.event.entity.Event;
 import com.oshifes.domain.event.entity.EventIp;
 import com.oshifes.global.error.CustomException;
@@ -22,19 +21,19 @@ public final class EventSpecifications {
     private EventSpecifications() {
     }
 
-    public static Specification<Event> withCondition(EventSearchCondition condition) {
-        YearMonth yearMonth = StringUtils.hasText(condition.month()) ? parseYearMonth(condition.month()) : null;
+    public static Specification<Event> withCondition(String country, String category, String month, Long ipId) {
+        YearMonth yearMonth = StringUtils.hasText(month) ? parseYearMonth(month) : null;
 
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(criteriaBuilder.isNull(root.get("deletedAt")));
 
-            if (StringUtils.hasText(condition.country())) {
-                predicates.add(criteriaBuilder.equal(root.get("country"), condition.country().trim()));
+            if (StringUtils.hasText(country)) {
+                predicates.add(criteriaBuilder.equal(root.get("country"), country.trim()));
             }
 
-            if (StringUtils.hasText(condition.category())) {
-                predicates.add(criteriaBuilder.equal(root.get("category"), condition.category().trim()));
+            if (StringUtils.hasText(category)) {
+                predicates.add(criteriaBuilder.equal(root.get("category"), category.trim()));
             }
 
             if (yearMonth != null) {
@@ -52,13 +51,13 @@ public final class EventSpecifications {
                 ));
             }
 
-            if (condition.ipId() != null) {
+            if (ipId != null) {
                 Subquery<Long> subquery = query.subquery(Long.class);
                 Root<EventIp> eventIp = subquery.from(EventIp.class);
                 subquery.select(criteriaBuilder.literal(1L))
                         .where(
                                 criteriaBuilder.equal(eventIp.get("event"), root),
-                                criteriaBuilder.equal(eventIp.get("ipTitle").get("id"), condition.ipId())
+                                criteriaBuilder.equal(eventIp.get("ipTitle").get("id"), ipId)
                         );
                 predicates.add(criteriaBuilder.exists(subquery));
             }

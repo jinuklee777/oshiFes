@@ -28,7 +28,12 @@ public class EventService {
     private final EventRepository eventRepository;
 
     public Page<EventResponse> getEvents(EventSearchCondition condition, Pageable pageable) {
-        return eventRepository.findAll(EventSpecifications.withCondition(condition), pageable)
+        return eventRepository.findAll(EventSpecifications.withCondition(
+                        condition.country(),
+                        condition.category(),
+                        condition.month(),
+                        condition.ipId()
+                ), pageable)
                 .map(EventResponse::from);
     }
 
