@@ -14,6 +14,7 @@ import com.oshifes.infrastructure.anilist.AniListClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
@@ -188,6 +189,46 @@ class CharacterBirthdayServiceTest {
     }
 
     @Test
+    void registerFromAniList_blankMediaExternalId_isSavedAsNull() {
+        CharacterBirthdayRegisterRequest request = new CharacterBirthdayRegisterRequest(
+                "나카노 아즈사",
+                "1",
+                "中野 梓",
+                "Azusa Nakano",
+                "Azusa Nakano",
+                11,
+                11,
+                "https://example.com/image.jpg",
+                " ",
+                "けいおん!",
+                "K-On!",
+                "K-On!",
+                "https://anilist.co/character/1",
+                "{}"
+        );
+        given(characterRepository.findBySourceTypeAndExternalId("ANILIST", "1")).willReturn(Optional.empty());
+        given(ipTitleRepository.save(any(IpTitle.class))).willAnswer(invocation -> invocation.getArgument(0));
+        given(characterRepository.save(any(Character.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        service.registerFromAniList(request);
+
+        ArgumentCaptor<IpTitle> captor = ArgumentCaptor.forClass(IpTitle.class);
+        verify(ipTitleRepository).save(captor.capture());
+        assertThat(captor.getValue().getExternalId()).isNull();
+    }
+
+    @Test
+    void registerRequest_rejectsInvalidMonthDayCombinations() {
+        CharacterBirthdayRegisterRequest invalidFebruaryDate = registerRequest("1", "나카노 아즈사", 2, 30);
+        CharacterBirthdayRegisterRequest invalidThirtyDayMonth = registerRequest("2", "나카노 아즈사", 4, 31);
+        CharacterBirthdayRegisterRequest leapDay = registerRequest("3", "윤년 생일", 2, 29);
+
+        assertThat(invalidFebruaryDate.isBirthdayDateValid()).isFalse();
+        assertThat(invalidThirtyDayMonth.isBirthdayDateValid()).isFalse();
+        assertThat(leapDay.isBirthdayDateValid()).isTrue();
+    }
+
+    @Test
     void getUpcoming_calculatesDaysUntilBirthday() {
         Character today = character("오늘 생일", 5, 6);
         Character thisYear = character("올해 생일", 5, 10);
@@ -279,8 +320,12 @@ class CharacterBirthdayServiceTest {
     }
 
     private CharacterBirthdayRegisterRequest registerRequest(String id, String nameKo) {
+        return registerRequest(id, nameKo, 11, 11);
+    }
+
+    private CharacterBirthdayRegisterRequest registerRequest(String id, String nameKo, Integer month, Integer day) {
         AniListCharacterCandidateResponse candidate = AniListCharacterCandidateResponse.from(
-                aniListResult(id, "中野 梓", "Azusa Nakano", 11, 11)
+                aniListResult(id, "中野 梓", "Azusa Nakano", month, day)
         );
         return new CharacterBirthdayRegisterRequest(
                 nameKo,

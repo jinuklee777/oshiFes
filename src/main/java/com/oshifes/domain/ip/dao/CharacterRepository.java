@@ -23,7 +23,9 @@ public interface CharacterRepository extends JpaRepository<Character, Long> {
     @Query("""
             select c
             from Character c
-            where (:month is null or c.birthdayMonth = :month)
+            where c.birthdayMonth is not null
+              and c.birthdayDay is not null
+              and (:month is null or c.birthdayMonth = :month)
               and (:day is null or c.birthdayDay = :day)
             """)
     Page<Character> searchBirthdays(@Param("month") Integer month,
@@ -35,16 +37,26 @@ public interface CharacterRepository extends JpaRepository<Character, Long> {
             select c
             from Character c
             join c.ipTitle t
-            where lower(c.nameKo) like lower(concat('%', :keyword, '%'))
-               or lower(coalesce(c.nameJa, '')) like lower(concat('%', :keyword, '%'))
-               or lower(t.nameKo) like lower(concat('%', :keyword, '%'))
-               or lower(coalesce(t.nameJa, '')) like lower(concat('%', :keyword, '%'))
-               or lower(coalesce(t.nameEn, '')) like lower(concat('%', :keyword, '%'))
+            where c.birthdayMonth is not null
+              and c.birthdayDay is not null
+              and (
+                   lower(c.nameKo) like lower(concat('%', :keyword, '%'))
+                or lower(coalesce(c.nameJa, '')) like lower(concat('%', :keyword, '%'))
+                or lower(t.nameKo) like lower(concat('%', :keyword, '%'))
+                or lower(coalesce(t.nameJa, '')) like lower(concat('%', :keyword, '%'))
+                or lower(coalesce(t.nameEn, '')) like lower(concat('%', :keyword, '%'))
+              )
             """)
     List<Character> searchByKeyword(@Param("keyword") String keyword);
 
     @EntityGraph(attributePaths = "ipTitle")
-    List<Character> findByBirthdayMonth(Integer birthdayMonth);
+    @Query("""
+            select c
+            from Character c
+            where c.birthdayMonth = :birthdayMonth
+              and c.birthdayDay is not null
+            """)
+    List<Character> findByBirthdayMonth(@Param("birthdayMonth") Integer birthdayMonth);
 
     @EntityGraph(attributePaths = "ipTitle")
     @Query("""

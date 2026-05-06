@@ -253,6 +253,7 @@ public class CharacterBirthdayService {
     }
 
     private IpTitle createIpTitle(AniListCharacterResult result) {
+        String mediaExternalId = normalize(result.mediaExternalId());
         TranslatedName titleName = characterNameTranslator.translate(
                 result.mediaNativeTitle(),
                 result.mediaRomajiTitle(),
@@ -266,7 +267,7 @@ public class CharacterBirthdayService {
                 .category(DEFAULT_CATEGORY)
                 .thumbnailUrl(result.imageUrl())
                 .sourceType(SOURCE_TYPE_ANILIST)
-                .externalId(result.mediaExternalId())
+                .externalId(mediaExternalId)
                 .isAutoTranslated(titleName.autoTranslated())
                 .extra(toExtraJson(result))
                 .build();
@@ -340,7 +341,7 @@ public class CharacterBirthdayService {
                 request.birthdayMonth(),
                 request.birthdayDay(),
                 request.imageUrl(),
-                request.mediaExternalId(),
+                normalize(request.mediaExternalId()),
                 request.mediaNativeTitle(),
                 request.mediaRomajiTitle(),
                 request.mediaUserPreferredTitle(),
