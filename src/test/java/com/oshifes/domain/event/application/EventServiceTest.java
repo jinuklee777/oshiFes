@@ -2,6 +2,7 @@ package com.oshifes.domain.event.application;
 
 import com.oshifes.domain.event.api.dto.EventRequest;
 import com.oshifes.domain.event.api.dto.EventResponse;
+import com.oshifes.domain.event.application.dto.EventSearchCondition;
 import com.oshifes.domain.event.dao.EventRepository;
 import com.oshifes.domain.event.entity.Event;
 import com.oshifes.global.error.CustomException;
@@ -19,6 +20,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -27,6 +29,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
@@ -63,13 +66,43 @@ class EventServiceTest {
     @Test
     void getEvents_성공() {
         Pageable pageable = PageRequest.of(0, 20);
-        given(eventRepository.findAllByDeletedAtIsNull(pageable))
+        EventSearchCondition condition = new EventSearchCondition(null, null, null, null);
+        given(eventRepository.findAll(anyEventSpecification(), eq(pageable)))
                 .willReturn(new PageImpl<>(List.of(createSampleEvent())));
 
-        Page<EventResponse> result = eventService.getEvents(pageable);
+        Page<EventResponse> result = eventService.getEvents(condition, pageable);
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).getTitle()).isEqualTo("테스트 행사");
+        verify(eventRepository).findAll(anyEventSpecification(), eq(pageable));
+    }
+
+    @Test
+    void getEvents_필터조건으로조회() {
+        Pageable pageable = PageRequest.of(0, 20);
+        EventSearchCondition condition = new EventSearchCondition("KR", "concert", "2026-05", 1L);
+        given(eventRepository.findAll(anyEventSpecification(), eq(pageable)))
+                .willReturn(new PageImpl<>(List.of(createSampleEvent())));
+
+        Page<EventResponse> result = eventService.getEvents(condition, pageable);
+
+        assertThat(result.getContent()).hasSize(1);
+        verify(eventRepository).findAll(anyEventSpecification(), eq(pageable));
+    }
+
+    private Specification<Event> anyEventSpecification() {
+        return org.mockito.ArgumentMatchers.any();
+    }
+
+    @Test
+    void getEvents_월형식이잘못되면_예외() {
+        Pageable pageable = PageRequest.of(0, 20);
+        EventSearchCondition condition = new EventSearchCondition(null, null, "2026/05", null);
+
+        assertThatThrownBy(() -> eventService.getEvents(condition, pageable))
+                .isInstanceOf(CustomException.class)
+                .extracting(e -> ((CustomException) e).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_INPUT_VALUE);
     }
 
     @Test

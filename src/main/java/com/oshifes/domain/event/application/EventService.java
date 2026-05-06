@@ -2,7 +2,9 @@ package com.oshifes.domain.event.application;
 
 import com.oshifes.domain.event.api.dto.EventRequest;
 import com.oshifes.domain.event.api.dto.EventResponse;
+import com.oshifes.domain.event.application.dto.EventSearchCondition;
 import com.oshifes.domain.event.dao.EventRepository;
+import com.oshifes.domain.event.dao.EventSpecifications;
 import com.oshifes.domain.event.entity.Event;
 import com.oshifes.global.error.CustomException;
 import com.oshifes.global.error.ErrorCode;
@@ -25,8 +27,13 @@ public class EventService {
 
     private final EventRepository eventRepository;
 
-    public Page<EventResponse> getEvents(Pageable pageable) {
-        return eventRepository.findAllByDeletedAtIsNull(pageable)
+    public Page<EventResponse> getEvents(EventSearchCondition condition, Pageable pageable) {
+        return eventRepository.findAll(EventSpecifications.withCondition(
+                        condition.country(),
+                        condition.category(),
+                        condition.month(),
+                        condition.ipId()
+                ), pageable)
                 .map(EventResponse::from);
     }
 
