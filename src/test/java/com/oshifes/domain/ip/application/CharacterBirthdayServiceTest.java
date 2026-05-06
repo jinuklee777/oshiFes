@@ -162,6 +162,29 @@ class CharacterBirthdayServiceTest {
     }
 
     @Test
+    void search_runsFallbackQueriesEvenWhenPrimaryResultsAreFilteredOutByWork() {
+        AniListCharacterResult otherWork = aniListResult(
+                "2", "中野五月", "Itsuki Nakano", 5, 6,
+                "100", "五等分の花嫁", "Go-toubun no Hanayome", "Go-toubun no Hanayome"
+        );
+        AniListCharacterResult targetWork = aniListResult(
+                "1", "中野 梓", "Azusa Nakano", 11, 11,
+                "200", "けいおん!", "K-On!", "K-On!"
+        );
+        given(characterRepository.searchByKeyword("나카노 아즈사")).willReturn(List.of());
+        given(aniListClient.searchCharacters(any())).willReturn(List.of());
+        given(aniListClient.searchCharacters("azusa nakano")).willReturn(List.of(otherWork));
+        given(aniListClient.searchCharacters("azusa")).willReturn(List.of(targetWork));
+
+        CharacterBirthdaySearchResponse result = service.search("나카노 아즈사", "K-On", true);
+
+        assertThat(result.candidates())
+                .extracting(candidate -> candidate.getFullName())
+                .containsExactly("Azusa Nakano");
+        verify(aniListClient).searchCharacters("azusa");
+    }
+
+    @Test
     void registerFromAniList_savesSelectedCandidateWithUserKoreanName() {
         CharacterBirthdayRegisterRequest request = registerRequest("1", "나카노 아즈사");
         given(characterRepository.findBySourceTypeAndExternalId("ANILIST", "1")).willReturn(Optional.empty());
@@ -302,6 +325,14 @@ class CharacterBirthdayServiceTest {
 
     private AniListCharacterResult aniListResult(String id, String nativeName, String fullName,
                                                 Integer month, Integer day) {
+        return aniListResult(id, nativeName, fullName, month, day,
+                "100", "けいおん!", "K-On!", "K-On!");
+    }
+
+    private AniListCharacterResult aniListResult(String id, String nativeName, String fullName,
+                                                Integer month, Integer day, String mediaExternalId,
+                                                String mediaNativeTitle, String mediaRomajiTitle,
+                                                String mediaUserPreferredTitle) {
         return new AniListCharacterResult(
                 id,
                 nativeName,
@@ -310,10 +341,10 @@ class CharacterBirthdayServiceTest {
                 month,
                 day,
                 "https://example.com/image.jpg",
-                "100",
-                "けいおん!",
-                "K-On!",
-                "K-On!",
+                mediaExternalId,
+                mediaNativeTitle,
+                mediaRomajiTitle,
+                mediaUserPreferredTitle,
                 "https://anilist.co/character/" + id,
                 "{}"
         );

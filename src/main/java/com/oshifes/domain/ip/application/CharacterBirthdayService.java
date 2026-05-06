@@ -144,10 +144,8 @@ public class CharacterBirthdayService {
             addAniListResults(deduplicated, aniListClient.searchCharacters(variant));
         }
 
-        if (deduplicated.isEmpty()) {
-            for (String fallback : aniListSearchQueryGenerator.splitFallbacks(query)) {
-                addAniListResults(deduplicated, aniListClient.searchCharacters(fallback));
-            }
+        for (String fallback : aniListSearchQueryGenerator.splitFallbacks(query)) {
+            addAniListResults(deduplicated, aniListClient.searchCharacters(fallback));
         }
 
         return new ArrayList<>(deduplicated.values());
