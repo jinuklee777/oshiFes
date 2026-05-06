@@ -5,9 +5,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +21,8 @@ public class RestAniListClient implements AniListClient {
 
     private static final String ANILIST_URL = "https://graphql.anilist.co";
     private static final String CHARACTER_URL_PREFIX = "https://anilist.co/character/";
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(3);
+    private static final Duration READ_TIMEOUT = Duration.ofSeconds(5);
     private static final String QUERY = """
             query ($search: String) {
               Page(page: 1, perPage: 25) {
@@ -39,7 +43,9 @@ public class RestAniListClient implements AniListClient {
             """;
 
     private final ObjectMapper objectMapper;
-    private final RestClient restClient = RestClient.create();
+    private final RestClient restClient = RestClient.builder()
+            .requestFactory(requestFactory())
+            .build();
 
     @Override
     public List<AniListCharacterResult> searchCharacters(String query) {
@@ -134,5 +140,12 @@ public class RestAniListClient implements AniListClient {
             }
         }
         return null;
+    }
+
+    private static SimpleClientHttpRequestFactory requestFactory() {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(CONNECT_TIMEOUT);
+        requestFactory.setReadTimeout(READ_TIMEOUT);
+        return requestFactory;
     }
 }

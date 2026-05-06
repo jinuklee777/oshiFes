@@ -102,6 +102,19 @@ class CharacterBirthdayServiceTest {
     }
 
     @Test
+    void search_excludesRegisteredCharactersWithInvalidBirthday() {
+        Character valid = character("나카노 아즈사", 11, 11);
+        Character invalid = character("잘못된 생일", 2, 31);
+        given(characterRepository.searchByKeyword("아즈사")).willReturn(List.of(invalid, valid));
+
+        CharacterBirthdaySearchResponse result = service.search("아즈사", null, true);
+
+        assertThat(result.registered())
+                .extracting(CharacterBirthdayResponse::getNameKo)
+                .containsExactly("나카노 아즈사");
+    }
+
+    @Test
     void search_dbMiss_fetchesAniListCandidatesWithoutSaving() {
         AniListCharacterResult aniListResult = aniListResult("1", "中野 梓", "Azusa Nakano", 11, 11);
         given(characterRepository.searchByKeyword("아즈사")).willReturn(List.of());
@@ -282,6 +295,20 @@ class CharacterBirthdayServiceTest {
     }
 
     @Test
+    void getUpcoming_excludesCharactersWithInvalidBirthday() {
+        Character valid = character("정상 생일", 5, 10);
+        Character invalidDay = character("잘못된 일", 2, 31);
+        Character invalidMonth = character("잘못된 월", 13, 1);
+        given(characterRepository.findAllWithBirthday()).willReturn(List.of(invalidDay, valid, invalidMonth));
+
+        List<CharacterBirthdayResponse> result = service.getUpcoming(10);
+
+        assertThat(result)
+                .extracting(CharacterBirthdayResponse::getNameKo)
+                .containsExactly("정상 생일");
+    }
+
+    @Test
     void getBirthdays_february29BirthdayDoesNotThrowInNonLeapYear() {
         Character leapDay = character("윤년 생일", 2, 29);
         given(characterRepository.searchBirthdays(2, 29, PageRequest.of(0, 20)))
@@ -291,6 +318,34 @@ class CharacterBirthdayServiceTest {
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).getDaysUntilBirthday()).isEqualTo(664);
+    }
+
+    @Test
+    void getBirthdays_excludesCharactersWithInvalidBirthday() {
+        Character valid = character("정상 생일", 11, 11);
+        Character invalid = character("잘못된 생일", 2, 31);
+        given(characterRepository.searchBirthdays(null, null, PageRequest.of(0, 20)))
+                .willReturn(new org.springframework.data.domain.PageImpl<>(List.of(invalid, valid)));
+
+        Page<CharacterBirthdayResponse> result = service.getBirthdays(null, null, PageRequest.of(0, 20));
+
+        assertThat(result.getContent())
+                .extracting(CharacterBirthdayResponse::getNameKo)
+                .containsExactly("정상 생일");
+    }
+
+    @Test
+    void getCalendar_excludesCharactersWithInvalidBirthday() {
+        Character valid = character("정상 생일", 11, 11);
+        Character invalid = character("잘못된 생일", 11, 31);
+        given(characterRepository.findByBirthdayMonth(11)).willReturn(List.of(invalid, valid));
+
+        var result = service.getCalendar(11);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).birthdays())
+                .extracting(CharacterBirthdayResponse::getNameKo)
+                .containsExactly("정상 생일");
     }
 
     @Test

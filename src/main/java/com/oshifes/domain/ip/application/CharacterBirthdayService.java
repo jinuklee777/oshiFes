@@ -16,12 +16,15 @@ import com.oshifes.infrastructure.anilist.AniListCharacterResult;
 import com.oshifes.infrastructure.anilist.AniListClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.DateTimeException;
 import java.time.LocalDate;
+import java.time.MonthDay;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -46,12 +49,17 @@ public class CharacterBirthdayService {
     private final Clock clock;
 
     public Page<CharacterBirthdayResponse> getBirthdays(Integer month, Integer day, Pageable pageable) {
-        return characterRepository.searchBirthdays(month, day, pageable)
-                .map(this::toResponse);
+        Page<Character> page = characterRepository.searchBirthdays(month, day, pageable);
+        List<CharacterBirthdayResponse> content = page.getContent().stream()
+                .filter(this::hasValidBirthday)
+                .map(this::toResponse)
+                .toList();
+        return new PageImpl<>(content, pageable, content.size());
     }
 
     public List<CharacterBirthdayCalendarResponse> getCalendar(Integer month) {
         return characterRepository.findByBirthdayMonth(month).stream()
+                .filter(this::hasValidBirthday)
                 .collect(Collectors.groupingBy(Character::getBirthdayDay))
                 .entrySet()
                 .stream()
@@ -69,6 +77,7 @@ public class CharacterBirthdayService {
 
     public List<CharacterBirthdayResponse> getUpcoming(int limit) {
         return characterRepository.findAllWithBirthday().stream()
+                .filter(this::hasValidBirthday)
                 .map(this::toResponse)
                 .sorted(Comparator
                         .comparingInt(CharacterBirthdayResponse::getDaysUntilBirthday)
@@ -106,7 +115,9 @@ public class CharacterBirthdayService {
                 }
             }
         }
-        return new ArrayList<>(deduplicated.values());
+        return deduplicated.values().stream()
+                .filter(this::hasValidBirthday)
+                .toList();
     }
 
     private List<String> dbSearchKeywords(String query) {
@@ -282,6 +293,22 @@ public class CharacterBirthdayService {
         LocalDate today = LocalDate.now(clock);
         LocalDate birthday = nextBirthday(today, month, day);
         return (int) java.time.temporal.ChronoUnit.DAYS.between(today, birthday);
+    }
+
+    private boolean hasValidBirthday(Character character) {
+        return isValidBirthday(character.getBirthdayMonth(), character.getBirthdayDay());
+    }
+
+    private boolean isValidBirthday(Integer month, Integer day) {
+        if (month == null || day == null) {
+            return false;
+        }
+        try {
+            MonthDay.of(month, day);
+            return true;
+        } catch (DateTimeException e) {
+            return false;
+        }
     }
 
     private LocalDate nextBirthday(LocalDate today, Integer month, Integer day) {
