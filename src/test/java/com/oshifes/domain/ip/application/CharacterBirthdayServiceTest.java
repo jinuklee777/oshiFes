@@ -225,6 +225,54 @@ class CharacterBirthdayServiceTest {
     }
 
     @Test
+    void registerFromAniList_trimsExternalIdBeforeLookupAndSave() {
+        CharacterBirthdayRegisterRequest request = registerRequest(" 1 ", "나카노 아즈사");
+        given(characterRepository.findBySourceTypeAndExternalId("ANILIST", "1")).willReturn(Optional.empty());
+        given(ipTitleRepository.findBySourceTypeAndExternalId("ANILIST", "100")).willReturn(Optional.empty());
+        given(ipTitleRepository.save(any(IpTitle.class))).willAnswer(invocation -> invocation.getArgument(0));
+        given(characterRepository.save(any(Character.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        service.registerFromAniList(request);
+
+        ArgumentCaptor<Character> captor = ArgumentCaptor.forClass(Character.class);
+        verify(characterRepository).save(captor.capture());
+        assertThat(captor.getValue().getExternalId()).isEqualTo("1");
+    }
+
+    @Test
+    void registerFromAniList_trimsMediaExternalIdBeforeLookup() {
+        CharacterBirthdayRegisterRequest request = new CharacterBirthdayRegisterRequest(
+                "나카노 아즈사",
+                "1",
+                "中野 梓",
+                "Azusa Nakano",
+                "Azusa Nakano",
+                11,
+                11,
+                "https://example.com/image.jpg",
+                " 100 ",
+                "けいおん!",
+                "K-On!",
+                "K-On!",
+                "https://anilist.co/character/1",
+                "{}"
+        );
+        IpTitle existing = IpTitle.builder()
+                .nameKo("케이온!")
+                .category("anime")
+                .sourceType("ANILIST")
+                .externalId("100")
+                .build();
+        given(characterRepository.findBySourceTypeAndExternalId("ANILIST", "1")).willReturn(Optional.empty());
+        given(ipTitleRepository.findBySourceTypeAndExternalId("ANILIST", "100")).willReturn(Optional.of(existing));
+        given(characterRepository.save(any(Character.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        service.registerFromAniList(request);
+
+        verify(ipTitleRepository, never()).save(any(IpTitle.class));
+    }
+
+    @Test
     void registerFromAniList_blankMediaExternalId_isSavedAsNull() {
         CharacterBirthdayRegisterRequest request = new CharacterBirthdayRegisterRequest(
                 "나카노 아즈사",
@@ -358,6 +406,23 @@ class CharacterBirthdayServiceTest {
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).getDaysUntilBirthday()).isEqualTo(189);
+    }
+
+    @Test
+    void getBirthdays_preservesRepositoryTotalElements() {
+        Character character = character("나카노 아즈사", 11, 11);
+        given(characterRepository.searchBirthdays(null, null, PageRequest.of(1, 1)))
+                .willReturn(new org.springframework.data.domain.PageImpl<>(
+                        List.of(character),
+                        PageRequest.of(1, 1),
+                        3
+                ));
+
+        Page<CharacterBirthdayResponse> result = service.getBirthdays(null, null, PageRequest.of(1, 1));
+
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getTotalElements()).isEqualTo(3);
+        assertThat(result.getTotalPages()).isEqualTo(3);
     }
 
     private Character character(String nameKo, int month, int day) {

@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.locationtech.jts.geom.Point;
 
 import java.time.LocalDate;
@@ -58,6 +60,7 @@ public class Event extends BaseTimeEntity {
     private boolean isAutoTranslated = false;
 
     @Column(columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
     private String extra;
 
     private LocalDateTime deletedAt;

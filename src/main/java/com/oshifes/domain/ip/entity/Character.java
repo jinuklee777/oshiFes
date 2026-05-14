@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import static lombok.AccessLevel.PROTECTED;
 
@@ -42,6 +44,7 @@ public class Character extends BaseTimeEntity {
     private boolean isAutoTranslated = false;
 
     @Column(columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
     private String extra;
 
     @Builder

@@ -54,7 +54,7 @@ public class CharacterBirthdayService {
                 .filter(this::hasValidBirthday)
                 .map(this::toResponse)
                 .toList();
-        return new PageImpl<>(content, pageable, content.size());
+        return new PageImpl<>(content, pageable, page.getTotalElements());
     }
 
     public List<CharacterBirthdayCalendarResponse> getCalendar(Integer month) {
@@ -131,7 +131,8 @@ public class CharacterBirthdayService {
 
     @Transactional
     public CharacterBirthdayResponse registerFromAniList(CharacterBirthdayRegisterRequest request) {
-        return characterRepository.findBySourceTypeAndExternalId(SOURCE_TYPE_ANILIST, request.externalId())
+        String externalId = normalize(request.externalId());
+        return characterRepository.findBySourceTypeAndExternalId(SOURCE_TYPE_ANILIST, externalId)
                 .map(this::toResponse)
                 .orElseGet(() -> toResponse(characterRepository.save(createCharacter(toAniListResult(request), request.nameKo()))));
     }
@@ -254,8 +255,9 @@ public class CharacterBirthdayService {
     }
 
     private IpTitle findOrCreateIpTitle(AniListCharacterResult result) {
-        if (result.mediaExternalId() != null && !result.mediaExternalId().isBlank()) {
-            return ipTitleRepository.findBySourceTypeAndExternalId(SOURCE_TYPE_ANILIST, result.mediaExternalId())
+        String mediaExternalId = normalize(result.mediaExternalId());
+        if (mediaExternalId != null) {
+            return ipTitleRepository.findBySourceTypeAndExternalId(SOURCE_TYPE_ANILIST, mediaExternalId)
                     .orElseGet(() -> ipTitleRepository.save(createIpTitle(result)));
         }
         return ipTitleRepository.save(createIpTitle(result));
@@ -359,7 +361,7 @@ public class CharacterBirthdayService {
 
     private AniListCharacterResult toAniListResult(CharacterBirthdayRegisterRequest request) {
         return new AniListCharacterResult(
-                request.externalId(),
+                normalize(request.externalId()),
                 request.nativeName(),
                 request.fullName(),
                 request.userPreferredName(),
