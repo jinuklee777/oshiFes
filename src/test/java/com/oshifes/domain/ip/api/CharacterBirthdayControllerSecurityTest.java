@@ -18,6 +18,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -55,7 +58,27 @@ class CharacterBirthdayControllerSecurityTest {
     }
 
     @Test
-    void registerFromAniList_withJwtDoesNotRequireCsrfToken() throws Exception {
+    void registerFromAniList_withJwtRequiresCsrfToken() throws Exception {
+        String token = jwtTokenProvider.generateToken(1L, "USER");
+
+        mockMvc.perform(post("/api/characters/birthdays/anilist")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "nameKo": "테스트 캐릭터",
+                                  "externalId": "123",
+                                  "birthdayMonth": 1,
+                                  "birthdayDay": 1
+                                }
+                                """))
+                .andExpect(status().isForbidden());
+
+        verify(characterBirthdayService, never()).registerFromAniList(any());
+    }
+
+    @Test
+    void registerFromAniList_withJwtAndCsrfTokenSucceeds() throws Exception {
         given(characterBirthdayService.registerFromAniList(any()))
                 .willReturn(CharacterBirthdayResponse.builder()
                         .characterId(1L)
@@ -69,6 +92,7 @@ class CharacterBirthdayControllerSecurityTest {
 
         mockMvc.perform(post("/api/characters/birthdays/anilist")
                         .header("Authorization", "Bearer " + token)
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
