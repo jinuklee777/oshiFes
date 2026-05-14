@@ -24,7 +24,7 @@ public class AuthController {
 
     @Operation(
             summary = "Swagger 테스트용 JWT 발급",
-            description = "local 프로필에서만 활성화됩니다. 응답의 accessToken 값을 Swagger Authorize의 bearerAuth에 입력해 보호 API를 테스트합니다."
+            description = "local 프로필에서만 활성화됩니다. 응답의 accessToken 값을 Authorization: Bearer 헤더 또는 Swagger Authorize의 bearerAuth에 입력해 보호 API를 테스트합니다."
     )
     @SecurityRequirements
     @PostMapping("/test-token")
