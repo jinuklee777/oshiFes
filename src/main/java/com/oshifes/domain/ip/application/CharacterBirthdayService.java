@@ -15,11 +15,14 @@ import com.oshifes.domain.ip.entity.IpTitle;
 import com.oshifes.infrastructure.anilist.AniListCharacterResult;
 import com.oshifes.infrastructure.anilist.AniListClient;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionOperations;
 
 import java.time.Clock;
 import java.time.DateTimeException;
@@ -47,6 +50,7 @@ public class CharacterBirthdayService {
     private final AniListSearchQueryGenerator aniListSearchQueryGenerator;
     private final ObjectMapper objectMapper;
     private final Clock clock;
+    private final TransactionOperations transactionOperations;
 
     public Page<CharacterBirthdayResponse> getBirthdays(Integer month, Integer day, Pageable pageable) {
         Page<Character> page = characterRepository.searchBirthdays(month, day, pageable);
@@ -129,12 +133,25 @@ public class CharacterBirthdayService {
         return List.of(normalizedQuery);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public CharacterBirthdayResponse registerFromAniList(CharacterBirthdayRegisterRequest request) {
         String externalId = normalize(request.externalId());
         return characterRepository.findBySourceTypeAndExternalId(SOURCE_TYPE_ANILIST, externalId)
                 .map(this::toResponse)
-                .orElseGet(() -> toResponse(characterRepository.save(createCharacter(toAniListResult(request), request.nameKo()))));
+                .orElseGet(() -> createOrFindExisting(request, externalId));
+    }
+
+    private CharacterBirthdayResponse createOrFindExisting(CharacterBirthdayRegisterRequest request, String externalId) {
+        try {
+            Character saved = transactionOperations.execute(status ->
+                    characterRepository.save(createCharacter(toAniListResult(request), request.nameKo()))
+            );
+            return toResponse(saved);
+        } catch (DataIntegrityViolationException e) {
+            return characterRepository.findBySourceTypeAndExternalId(SOURCE_TYPE_ANILIST, externalId)
+                    .map(this::toResponse)
+                    .orElseThrow(() -> e);
+        }
     }
 
     private List<AniListCharacterCandidateResponse> searchAniListCandidates(String query, String work) {

@@ -19,6 +19,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.support.TransactionOperations;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -56,7 +58,8 @@ class CharacterBirthdayServiceTest {
                 new FallbackCharacterNameTranslator(),
                 new AniListSearchQueryGenerator(),
                 new ObjectMapper(),
-                clock
+                clock,
+                TransactionOperations.withoutTransaction()
         );
     }
 
@@ -222,6 +225,22 @@ class CharacterBirthdayServiceTest {
 
         assertThat(result.getNameKo()).isEqualTo("나카노 아즈사");
         verify(characterRepository, never()).save(any(Character.class));
+    }
+
+    @Test
+    void registerFromAniList_duplicateInsertRace_returnsExistingCharacter() {
+        Character existing = character("나카노 아즈사", 11, 11);
+        CharacterBirthdayRegisterRequest request = registerRequest("1", "나카노 아즈사");
+        given(characterRepository.findBySourceTypeAndExternalId("ANILIST", "1"))
+                .willReturn(Optional.empty(), Optional.of(existing));
+        given(ipTitleRepository.findBySourceTypeAndExternalId("ANILIST", "100")).willReturn(Optional.empty());
+        given(ipTitleRepository.save(any(IpTitle.class))).willAnswer(invocation -> invocation.getArgument(0));
+        given(characterRepository.save(any(Character.class)))
+                .willThrow(new DataIntegrityViolationException("duplicate external id"));
+
+        CharacterBirthdayResponse result = service.registerFromAniList(request);
+
+        assertThat(result.getNameKo()).isEqualTo("나카노 아즈사");
     }
 
     @Test
