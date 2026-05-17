@@ -1,6 +1,6 @@
 package com.oshifes.domain.auth.handler;
 
-import com.oshifes.global.security.JwtTokenProvider;
+import com.oshifes.domain.auth.application.OAuth2AuthorizationCodeService;
 import com.oshifes.global.security.UserPrincipal;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -17,7 +17,7 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
-    private final JwtTokenProvider jwtTokenProvider;
+    private final OAuth2AuthorizationCodeService authorizationCodeService;
 
     @Value("${oauth2.redirect-uri}")
     private String redirectUri;
@@ -26,10 +26,9 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException {
         UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
-        String token = jwtTokenProvider.generateToken(principal.getUserId(), principal.getRole());
+        String code = authorizationCodeService.issueCode(principal.getUserId(), principal.getRole());
         String targetUrl = UriComponentsBuilder.fromUriString(redirectUri)
-                .queryParam("accessToken", token)
-                .queryParam("tokenType", "Bearer")
+                .queryParam("code", code)
                 .build()
                 .toUriString();
 

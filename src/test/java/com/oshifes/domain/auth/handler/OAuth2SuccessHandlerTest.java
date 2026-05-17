@@ -1,6 +1,6 @@
 package com.oshifes.domain.auth.handler;
 
-import com.oshifes.global.security.JwtTokenProvider;
+import com.oshifes.domain.auth.application.OAuth2AuthorizationCodeService;
 import com.oshifes.global.security.UserPrincipal;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -12,15 +12,16 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 
 class OAuth2SuccessHandlerTest {
 
-    private static final String SECRET =
-            "dGVzdC1zZWNyZXQta2V5LWZvci10ZXN0aW5nLW9ubHktbm90LWZvci1wcm9kdWN0aW9u";
-
     @Test
-    void onAuthenticationSuccess_redirectsWithAccessTokenWithoutCookie() throws Exception {
-        OAuth2SuccessHandler handler = new OAuth2SuccessHandler(new JwtTokenProvider(SECRET, 60_000));
+    void onAuthenticationSuccess_redirectsWithAuthorizationCodeWithoutAccessToken() throws Exception {
+        OAuth2AuthorizationCodeService authorizationCodeService = mock(OAuth2AuthorizationCodeService.class);
+        given(authorizationCodeService.issueCode(1L, "USER")).willReturn("login-code");
+        OAuth2SuccessHandler handler = new OAuth2SuccessHandler(authorizationCodeService);
         ReflectionTestUtils.setField(handler, "redirectUri", "oshifes://oauth2/callback");
         UserPrincipal principal = UserPrincipal.of(1L, "USER", Map.of());
         UsernamePasswordAuthenticationToken authentication =
@@ -29,14 +30,13 @@ class OAuth2SuccessHandlerTest {
 
         handler.onAuthenticationSuccess(new MockHttpServletRequest(), response, authentication);
 
+        assertThat(response.getRedirectedUrl()).doesNotContain("accessToken");
         assertThat(response.getHeader("Set-Cookie")).isNull();
-        assertThat(response.getRedirectedUrl()).startsWith("oshifes://oauth2/callback?");
-        assertThat(response.getRedirectedUrl()).contains("tokenType=Bearer");
 
-        String accessToken = UriComponentsBuilder.fromUriString(response.getRedirectedUrl())
+        String code = UriComponentsBuilder.fromUriString(response.getRedirectedUrl())
                 .build()
                 .getQueryParams()
-                .getFirst("accessToken");
-        assertThat(accessToken).isNotBlank();
+                .getFirst("code");
+        assertThat(code).isEqualTo("login-code");
     }
 }
