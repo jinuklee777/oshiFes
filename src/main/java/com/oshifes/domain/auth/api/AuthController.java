@@ -29,8 +29,8 @@ public class AuthController {
     @SecurityRequirements
     @PostMapping("/test-token")
     public ResponseEntity<ApiResponse<TokenResponse>> testToken(
-            @Parameter(description = "테스트 토큰을 발급할 사용자 ID", example = "1")
-            @RequestParam Long userId) {
+            @Parameter(description = "테스트 토큰을 발급할 사용자 ID. 비우면 local 테스트 사용자를 생성하거나 재사용합니다.", example = "1")
+            @RequestParam(required = false) Long userId) {
         return ResponseEntity.ok(ApiResponse.ok(authService.generateTestToken(userId)));
     }
 }
