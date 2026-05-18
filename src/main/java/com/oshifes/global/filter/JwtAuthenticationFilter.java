@@ -5,7 +5,6 @@ import com.oshifes.global.security.JwtTokenProvider;
 import com.oshifes.global.security.SecurityErrorResponseWriter;
 import com.oshifes.global.security.UserPrincipal;
 import io.jsonwebtoken.Claims;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -56,14 +55,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String bearer = request.getHeader("Authorization");
         if (StringUtils.hasText(bearer) && bearer.startsWith("Bearer ")) {
             return bearer.substring(7);
-        }
-        if (request.getCookies() == null) {
-            return null;
-        }
-        for (Cookie cookie : request.getCookies()) {
-            if ("access_token".equals(cookie.getName()) && StringUtils.hasText(cookie.getValue())) {
-                return cookie.getValue();
-            }
         }
         return null;
     }

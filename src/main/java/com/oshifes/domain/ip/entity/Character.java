@@ -2,8 +2,11 @@ package com.oshifes.domain.ip.entity;
 
 import com.oshifes.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import static lombok.AccessLevel.PROTECTED;
 
@@ -31,6 +34,33 @@ public class Character extends BaseTimeEntity {
 
     private String imageUrl;
 
+    private String sourceType;
+
+    private String externalId;
+
+    private String sourceUrl;
+
+    @Column(nullable = false)
+    private boolean isAutoTranslated = false;
+
     @Column(columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
     private String extra;
+
+    @Builder
+    private Character(IpTitle ipTitle, String nameKo, String nameJa, Integer birthdayMonth,
+                      Integer birthdayDay, String imageUrl, String sourceType, String externalId,
+                      String sourceUrl, boolean isAutoTranslated, String extra) {
+        this.ipTitle = ipTitle;
+        this.nameKo = nameKo;
+        this.nameJa = nameJa;
+        this.birthdayMonth = birthdayMonth;
+        this.birthdayDay = birthdayDay;
+        this.imageUrl = imageUrl;
+        this.sourceType = sourceType;
+        this.externalId = externalId;
+        this.sourceUrl = sourceUrl;
+        this.isAutoTranslated = isAutoTranslated;
+        this.extra = extra;
+    }
 }

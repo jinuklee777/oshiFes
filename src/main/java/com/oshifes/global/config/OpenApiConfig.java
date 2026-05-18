@@ -1,7 +1,6 @@
 package com.oshifes.global.config;
 
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
-import io.swagger.v3.oas.annotations.enums.SecuritySchemeIn;
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.info.Info;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -18,7 +17,7 @@ import org.springframework.context.annotation.Configuration;
         type = SecuritySchemeType.HTTP,
         scheme = "bearer",
         bearerFormat = "JWT",
-        in = SecuritySchemeIn.HEADER
+        description = "JWT access token. Swagger Authorize에는 토큰 값만 입력하세요."
 )
 public class OpenApiConfig {
 }

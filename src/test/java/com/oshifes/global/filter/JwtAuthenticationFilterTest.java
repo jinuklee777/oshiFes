@@ -5,7 +5,6 @@ import com.oshifes.global.security.JwtTokenProvider;
 import com.oshifes.global.security.SecurityErrorResponseWriter;
 import com.oshifes.global.security.UserPrincipal;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -53,17 +52,16 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
-    void doFilterInternal_validCookieToken_setsAuthentication() throws ServletException, IOException {
+    void doFilterInternal_cookieToken_passesWithoutAuthentication() throws ServletException, IOException {
         String token = jwtTokenProvider.generateToken(1L, "USER");
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setCookies(new Cookie("access_token", token));
+        request.addHeader("Cookie", "access_token=" + token);
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         filter.doFilterInternal(request, response, new MockFilterChain());
 
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        assertThat(authentication).isNotNull();
-        assertThat(((UserPrincipal) authentication.getPrincipal()).getUserId()).isEqualTo(1L);
+        assertThat(response.getStatus()).isEqualTo(HttpServletResponse.SC_OK);
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     }
 
     @Test
