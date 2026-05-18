@@ -103,7 +103,7 @@ public interface UserCharacterBirthdayRepository extends JpaRepository<UserChara
                                                               @Param("day") int day,
                                                               Pageable pageable);
 
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             delete from UserCharacterBirthday ucb
             where ucb.user.id = :userId
