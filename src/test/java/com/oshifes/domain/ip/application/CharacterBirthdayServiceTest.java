@@ -352,7 +352,8 @@ class CharacterBirthdayServiceTest {
         Character today = character("오늘 생일", 5, 6);
         Character thisYear = character("올해 생일", 5, 10);
         Character nextYear = character("지난 생일", 5, 1);
-        given(characterRepository.findAllWithBirthday()).willReturn(List.of(nextYear, thisYear, today));
+        given(characterRepository.findUpcomingBirthdays(5, 6, PageRequest.of(0, 3)))
+                .willReturn(List.of(today, thisYear, nextYear));
 
         List<CharacterBirthdayResponse> result = service.getUpcoming(3);
 
@@ -367,7 +368,8 @@ class CharacterBirthdayServiceTest {
     @Test
     void getUpcoming_february29BirthdayUsesNextLeapYear() {
         Character leapDay = character("윤년 생일", 2, 29);
-        given(characterRepository.findAllWithBirthday()).willReturn(List.of(leapDay));
+        given(characterRepository.findUpcomingBirthdays(5, 6, PageRequest.of(0, 1)))
+                .willReturn(List.of(leapDay));
 
         List<CharacterBirthdayResponse> result = service.getUpcoming(1);
 
@@ -382,13 +384,35 @@ class CharacterBirthdayServiceTest {
         Character valid = character("정상 생일", 5, 10);
         Character invalidDay = character("잘못된 일", 2, 31);
         Character invalidMonth = character("잘못된 월", 13, 1);
-        given(characterRepository.findAllWithBirthday()).willReturn(List.of(invalidDay, valid, invalidMonth));
+        given(characterRepository.findUpcomingBirthdays(5, 6, PageRequest.of(0, 10)))
+                .willReturn(List.of(invalidDay, valid, invalidMonth));
 
         List<CharacterBirthdayResponse> result = service.getUpcoming(10);
 
         assertThat(result)
                 .extracting(CharacterBirthdayResponse::getNameKo)
                 .containsExactly("정상 생일");
+    }
+
+    @Test
+    void registerFromAniList_duplicateIpTitleInsertRace_returnsExistingIpTitle() {
+        CharacterBirthdayRegisterRequest request = registerRequest("1", "나카노 아즈사");
+        IpTitle existingTitle = IpTitle.builder()
+                .nameKo("케이온!")
+                .category("anime")
+                .sourceType("ANILIST")
+                .externalId("100")
+                .build();
+        given(characterRepository.findBySourceTypeAndExternalId("ANILIST", "1")).willReturn(Optional.empty());
+        given(ipTitleRepository.findBySourceTypeAndExternalId("ANILIST", "100"))
+                .willReturn(Optional.empty(), Optional.of(existingTitle));
+        given(ipTitleRepository.save(any(IpTitle.class)))
+                .willThrow(new DataIntegrityViolationException("duplicate ip title external id"));
+        given(characterRepository.save(any(Character.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        CharacterBirthdayResponse result = service.registerFromAniList(request);
+
+        assertThat(result.getIpTitleNameKo()).isEqualTo("케이온!");
     }
 
     @Test

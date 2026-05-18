@@ -80,7 +80,7 @@ class CharacterBirthdayControllerSecurityTest {
                                   "birthdayDay": 1
                                 }
                                 """))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.success").value(true));
     }
 
@@ -105,7 +105,7 @@ class CharacterBirthdayControllerSecurityTest {
 
         mockMvc.perform(post("/api/me/characters/birthdays/10")
                         .header("Authorization", "Bearer " + token))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.characterId").value(10));
     }

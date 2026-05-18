@@ -25,6 +25,11 @@ public interface CharacterRepository extends JpaRepository<Character, Long> {
             from Character c
             where c.birthdayMonth is not null
               and c.birthdayDay is not null
+              and (
+                   (c.birthdayMonth in (1, 3, 5, 7, 8, 10, 12) and c.birthdayDay between 1 and 31)
+                or (c.birthdayMonth in (4, 6, 9, 11) and c.birthdayDay between 1 and 30)
+                or (c.birthdayMonth = 2 and c.birthdayDay between 1 and 29)
+              )
               and (:month is null or c.birthdayMonth = :month)
               and (:day is null or c.birthdayDay = :day)
             """)
@@ -39,6 +44,11 @@ public interface CharacterRepository extends JpaRepository<Character, Long> {
             join c.ipTitle t
             where c.birthdayMonth is not null
               and c.birthdayDay is not null
+              and (
+                   (c.birthdayMonth in (1, 3, 5, 7, 8, 10, 12) and c.birthdayDay between 1 and 31)
+                or (c.birthdayMonth in (4, 6, 9, 11) and c.birthdayDay between 1 and 30)
+                or (c.birthdayMonth = 2 and c.birthdayDay between 1 and 29)
+              )
               and (
                    lower(c.nameKo) like lower(concat('%', :keyword, '%'))
                 or lower(coalesce(c.nameJa, '')) like lower(concat('%', :keyword, '%'))
@@ -55,6 +65,11 @@ public interface CharacterRepository extends JpaRepository<Character, Long> {
             from Character c
             where c.birthdayMonth = :birthdayMonth
               and c.birthdayDay is not null
+              and (
+                   (c.birthdayMonth in (1, 3, 5, 7, 8, 10, 12) and c.birthdayDay between 1 and 31)
+                or (c.birthdayMonth in (4, 6, 9, 11) and c.birthdayDay between 1 and 30)
+                or (c.birthdayMonth = 2 and c.birthdayDay between 1 and 29)
+              )
             """)
     List<Character> findByBirthdayMonth(@Param("birthdayMonth") Integer birthdayMonth);
 
@@ -64,8 +79,39 @@ public interface CharacterRepository extends JpaRepository<Character, Long> {
             from Character c
             where c.birthdayMonth is not null
               and c.birthdayDay is not null
+              and (
+                   (c.birthdayMonth in (1, 3, 5, 7, 8, 10, 12) and c.birthdayDay between 1 and 31)
+                or (c.birthdayMonth in (4, 6, 9, 11) and c.birthdayDay between 1 and 30)
+                or (c.birthdayMonth = 2 and c.birthdayDay between 1 and 29)
+              )
             """)
     List<Character> findAllWithBirthday();
+
+    @EntityGraph(attributePaths = "ipTitle")
+    @Query("""
+            select c
+            from Character c
+            where c.birthdayMonth is not null
+              and c.birthdayDay is not null
+              and (
+                   (c.birthdayMonth in (1, 3, 5, 7, 8, 10, 12) and c.birthdayDay between 1 and 31)
+                or (c.birthdayMonth in (4, 6, 9, 11) and c.birthdayDay between 1 and 30)
+                or (c.birthdayMonth = 2 and c.birthdayDay between 1 and 29)
+              )
+            order by
+              case
+                when c.birthdayMonth > :month
+                  or (c.birthdayMonth = :month and c.birthdayDay >= :day)
+                then 0
+                else 1
+              end,
+              c.birthdayMonth,
+              c.birthdayDay,
+              c.nameKo
+            """)
+    List<Character> findUpcomingBirthdays(@Param("month") int month,
+                                          @Param("day") int day,
+                                          Pageable pageable);
 
     @EntityGraph(attributePaths = "ipTitle")
     Optional<Character> findBySourceTypeAndExternalId(String sourceType, String externalId);

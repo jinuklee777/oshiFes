@@ -40,18 +40,21 @@ class CharacterRepositoryTest {
         saveCharacter("생일 있음", 11, 11);
         saveCharacter("월 없음", null, 11);
         saveCharacter("일 없음", 11, null);
+        saveCharacter("잘못된 생일", 2, 31);
 
         Page<Character> result = characterRepository.searchBirthdays(null, null, PageRequest.of(0, 20));
 
         assertThat(result.getContent())
                 .extracting(Character::getNameKo)
                 .containsExactly("생일 있음");
+        assertThat(result.getTotalElements()).isEqualTo(1);
     }
 
     @Test
     void searchByKeyword_excludesCharactersWithoutCompleteBirthday() {
         saveCharacter("나카노 아즈사", 11, 11);
         saveCharacter("나카노 미등록", null, null);
+        saveCharacter("나카노 잘못된 생일", 2, 31);
 
         List<Character> result = characterRepository.searchByKeyword("나카노");
 
@@ -64,12 +67,27 @@ class CharacterRepositoryTest {
     void findByBirthdayMonth_excludesCharactersWithoutBirthdayDay() {
         saveCharacter("생일 있음", 11, 11);
         saveCharacter("일 없음", 11, null);
+        saveCharacter("잘못된 생일", 11, 31);
 
         List<Character> result = characterRepository.findByBirthdayMonth(11);
 
         assertThat(result)
                 .extracting(Character::getNameKo)
                 .containsExactly("생일 있음");
+    }
+
+    @Test
+    void findUpcomingBirthdays_ordersFromTodayAndLimitsInRepository() {
+        saveCharacter("지난 생일", 5, 1);
+        saveCharacter("오늘 생일", 5, 6);
+        saveCharacter("올해 생일", 5, 10);
+        saveCharacter("잘못된 생일", 2, 31);
+
+        List<Character> result = characterRepository.findUpcomingBirthdays(5, 6, PageRequest.of(0, 2));
+
+        assertThat(result)
+                .extracting(Character::getNameKo)
+                .containsExactly("오늘 생일", "올해 생일");
     }
 
     private Character saveCharacter(String nameKo, Integer month, Integer day) {

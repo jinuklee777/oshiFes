@@ -23,9 +23,11 @@ import com.oshifes.global.error.ErrorCode;
 import com.oshifes.infrastructure.anilist.AniListCharacterResult;
 import com.oshifes.infrastructure.anilist.AniListClient;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -46,6 +48,7 @@ import java.util.stream.Collectors;
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
+@Slf4j
 public class CharacterBirthdayService {
 
     private static final String SOURCE_TYPE_ANILIST = "ANILIST";
@@ -90,15 +93,14 @@ public class CharacterBirthdayService {
     }
 
     public List<CharacterBirthdayResponse> getUpcoming(int limit) {
-        return characterRepository.findAllWithBirthday().stream()
+        LocalDate today = LocalDate.now(clock);
+        return characterRepository.findUpcomingBirthdays(
+                        today.getMonthValue(),
+                        today.getDayOfMonth(),
+                        PageRequest.of(0, limit)
+                ).stream()
                 .filter(this::hasValidBirthday)
                 .map(this::toResponse)
-                .sorted(Comparator
-                        .comparingInt(CharacterBirthdayResponse::getDaysUntilBirthday)
-                        .thenComparing(CharacterBirthdayResponse::getBirthdayMonth)
-                        .thenComparing(CharacterBirthdayResponse::getBirthdayDay)
-                        .thenComparing(CharacterBirthdayResponse::getNameKo))
-                .limit(limit)
                 .toList();
     }
 
@@ -133,16 +135,16 @@ public class CharacterBirthdayService {
     }
 
     public List<CharacterBirthdayResponse> getMyUpcoming(Long userId, int limit) {
-        return userCharacterBirthdayRepository.findAllWithBirthdayByUserId(userId).stream()
+        LocalDate today = LocalDate.now(clock);
+        return userCharacterBirthdayRepository.findUpcomingBirthdaysByUserId(
+                        userId,
+                        today.getMonthValue(),
+                        today.getDayOfMonth(),
+                        PageRequest.of(0, limit)
+                ).stream()
                 .map(UserCharacterBirthday::getCharacter)
                 .filter(this::hasValidBirthday)
                 .map(this::toResponse)
-                .sorted(Comparator
-                        .comparingInt(CharacterBirthdayResponse::getDaysUntilBirthday)
-                        .thenComparing(CharacterBirthdayResponse::getBirthdayMonth)
-                        .thenComparing(CharacterBirthdayResponse::getBirthdayDay)
-                        .thenComparing(CharacterBirthdayResponse::getNameKo))
-                .limit(limit)
                 .toList();
     }
 
@@ -392,8 +394,13 @@ public class CharacterBirthdayService {
     private IpTitle findOrCreateIpTitle(AniListCharacterResult result) {
         String mediaExternalId = normalize(result.mediaExternalId());
         if (mediaExternalId != null) {
-            return ipTitleRepository.findBySourceTypeAndExternalId(SOURCE_TYPE_ANILIST, mediaExternalId)
-                    .orElseGet(() -> ipTitleRepository.save(createIpTitle(result)));
+            try {
+                return ipTitleRepository.findBySourceTypeAndExternalId(SOURCE_TYPE_ANILIST, mediaExternalId)
+                        .orElseGet(() -> ipTitleRepository.save(createIpTitle(result)));
+            } catch (DataIntegrityViolationException e) {
+                return ipTitleRepository.findBySourceTypeAndExternalId(SOURCE_TYPE_ANILIST, mediaExternalId)
+                        .orElseThrow(() -> e);
+            }
         }
         return ipTitleRepository.save(createIpTitle(result));
     }
@@ -490,6 +497,7 @@ public class CharacterBirthdayService {
                     "raw", result.rawJson() == null ? "" : result.rawJson()
             ));
         } catch (JsonProcessingException e) {
+            log.warn("Failed to serialize extra JSON for AniList result. externalId={}", result.externalId(), e);
             return null;
         }
     }
