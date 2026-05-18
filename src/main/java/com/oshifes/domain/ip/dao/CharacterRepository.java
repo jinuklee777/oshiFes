@@ -69,4 +69,12 @@ public interface CharacterRepository extends JpaRepository<Character, Long> {
 
     @EntityGraph(attributePaths = "ipTitle")
     Optional<Character> findBySourceTypeAndExternalId(String sourceType, String externalId);
+
+    @EntityGraph(attributePaths = "ipTitle")
+    @Query("""
+            select c
+            from Character c
+            where c.id = :id
+            """)
+    Optional<Character> findByIdWithIpTitle(@Param("id") Long id);
 }

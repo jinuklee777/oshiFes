@@ -6,12 +6,20 @@ import com.oshifes.domain.ip.api.dto.AniListCharacterCandidateResponse;
 import com.oshifes.domain.ip.api.dto.CharacterBirthdayCalendarResponse;
 import com.oshifes.domain.ip.api.dto.CharacterBirthdayRegisterRequest;
 import com.oshifes.domain.ip.api.dto.CharacterBirthdayResponse;
+import com.oshifes.domain.ip.api.dto.CharacterBirthdaySearchAddRequest;
+import com.oshifes.domain.ip.api.dto.CharacterBirthdaySearchAddResponse;
 import com.oshifes.domain.ip.api.dto.CharacterBirthdaySearchResponse;
 import com.oshifes.domain.ip.application.dto.TranslatedName;
 import com.oshifes.domain.ip.dao.CharacterRepository;
 import com.oshifes.domain.ip.dao.IpTitleRepository;
+import com.oshifes.domain.ip.dao.UserCharacterBirthdayRepository;
 import com.oshifes.domain.ip.entity.Character;
 import com.oshifes.domain.ip.entity.IpTitle;
+import com.oshifes.domain.ip.entity.UserCharacterBirthday;
+import com.oshifes.domain.user.dao.UserRepository;
+import com.oshifes.domain.user.entity.User;
+import com.oshifes.global.error.CustomException;
+import com.oshifes.global.error.ErrorCode;
 import com.oshifes.infrastructure.anilist.AniListCharacterResult;
 import com.oshifes.infrastructure.anilist.AniListClient;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +53,8 @@ public class CharacterBirthdayService {
 
     private final CharacterRepository characterRepository;
     private final IpTitleRepository ipTitleRepository;
+    private final UserCharacterBirthdayRepository userCharacterBirthdayRepository;
+    private final UserRepository userRepository;
     private final AniListClient aniListClient;
     private final CharacterNameTranslator characterNameTranslator;
     private final AniListSearchQueryGenerator aniListSearchQueryGenerator;
@@ -81,6 +91,50 @@ public class CharacterBirthdayService {
 
     public List<CharacterBirthdayResponse> getUpcoming(int limit) {
         return characterRepository.findAllWithBirthday().stream()
+                .filter(this::hasValidBirthday)
+                .map(this::toResponse)
+                .sorted(Comparator
+                        .comparingInt(CharacterBirthdayResponse::getDaysUntilBirthday)
+                        .thenComparing(CharacterBirthdayResponse::getBirthdayMonth)
+                        .thenComparing(CharacterBirthdayResponse::getBirthdayDay)
+                        .thenComparing(CharacterBirthdayResponse::getNameKo))
+                .limit(limit)
+                .toList();
+    }
+
+    public Page<CharacterBirthdayResponse> getMyBirthdays(Long userId, Integer month, Integer day, Pageable pageable) {
+        Page<UserCharacterBirthday> page =
+                userCharacterBirthdayRepository.searchBirthdays(userId, month, day, pageable);
+        List<CharacterBirthdayResponse> content = page.getContent().stream()
+                .map(UserCharacterBirthday::getCharacter)
+                .filter(this::hasValidBirthday)
+                .map(this::toResponse)
+                .toList();
+        return new PageImpl<>(content, pageable, page.getTotalElements());
+    }
+
+    public List<CharacterBirthdayCalendarResponse> getMyCalendar(Long userId, Integer month) {
+        return userCharacterBirthdayRepository.findByUserIdAndBirthdayMonth(userId, month).stream()
+                .map(UserCharacterBirthday::getCharacter)
+                .filter(this::hasValidBirthday)
+                .collect(Collectors.groupingBy(Character::getBirthdayDay))
+                .entrySet()
+                .stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> new CharacterBirthdayCalendarResponse(
+                        month,
+                        entry.getKey(),
+                        entry.getValue().stream()
+                                .sorted(Comparator.comparing(Character::getNameKo))
+                                .map(this::toResponse)
+                                .toList()
+                ))
+                .toList();
+    }
+
+    public List<CharacterBirthdayResponse> getMyUpcoming(Long userId, int limit) {
+        return userCharacterBirthdayRepository.findAllWithBirthdayByUserId(userId).stream()
+                .map(UserCharacterBirthday::getCharacter)
                 .filter(this::hasValidBirthday)
                 .map(this::toResponse)
                 .sorted(Comparator
@@ -136,19 +190,83 @@ public class CharacterBirthdayService {
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public CharacterBirthdayResponse registerFromAniList(CharacterBirthdayRegisterRequest request) {
         String externalId = normalize(request.externalId());
-        return characterRepository.findBySourceTypeAndExternalId(SOURCE_TYPE_ANILIST, externalId)
+        return toResponse(findOrRegisterAniListCharacter(request, externalId));
+    }
+
+    @Transactional
+    public CharacterBirthdayResponse addToMyBirthdays(Long userId, Long characterId) {
+        return userCharacterBirthdayRepository.findByUserIdAndCharacterId(userId, characterId)
+                .map(UserCharacterBirthday::getCharacter)
                 .map(this::toResponse)
+                .orElseGet(() -> addNewUserCharacterBirthday(userId, characterId));
+    }
+
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public CharacterBirthdayResponse registerFromAniListToMyBirthdays(Long userId,
+                                                                      CharacterBirthdayRegisterRequest request) {
+        String externalId = normalize(request.externalId());
+        Character character = findOrRegisterAniListCharacter(request, externalId);
+        return transactionOperations.execute(status -> addToMyBirthdays(userId, character.getId()));
+    }
+
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public CharacterBirthdaySearchAddResponse searchAndAddToMyBirthdays(Long userId,
+                                                                        CharacterBirthdaySearchAddRequest request) {
+        List<Character> dbResults = searchRegisteredCharacters(request.query());
+        if (!dbResults.isEmpty()) {
+            Character character = dbResults.get(0);
+            CharacterBirthdayResponse added =
+                    transactionOperations.execute(status -> addToMyBirthdays(userId, character.getId()));
+            return CharacterBirthdaySearchAddResponse.added(added);
+        }
+
+        return CharacterBirthdaySearchAddResponse.candidates(searchAniListCandidates(request.query(), request.work()));
+    }
+
+    @Transactional
+    public void removeFromMyBirthdays(Long userId, Long characterId) {
+        long deleted = userCharacterBirthdayRepository.deleteByUserIdAndCharacterId(userId, characterId);
+        if (deleted == 0) {
+            throw new CustomException(ErrorCode.USER_CHARACTER_BIRTHDAY_NOT_FOUND);
+        }
+    }
+
+    private Character findOrRegisterAniListCharacter(CharacterBirthdayRegisterRequest request, String externalId) {
+        return characterRepository.findBySourceTypeAndExternalId(SOURCE_TYPE_ANILIST, externalId)
                 .orElseGet(() -> createOrFindExisting(request, externalId));
     }
 
-    private CharacterBirthdayResponse createOrFindExisting(CharacterBirthdayRegisterRequest request, String externalId) {
+    private Character createOrFindExisting(CharacterBirthdayRegisterRequest request, String externalId) {
         try {
-            Character saved = transactionOperations.execute(status ->
+            return transactionOperations.execute(status ->
                     characterRepository.save(createCharacter(toAniListResult(request), request.nameKo()))
             );
-            return toResponse(saved);
         } catch (DataIntegrityViolationException e) {
             return characterRepository.findBySourceTypeAndExternalId(SOURCE_TYPE_ANILIST, externalId)
+                    .orElseThrow(() -> e);
+        }
+    }
+
+    private CharacterBirthdayResponse addNewUserCharacterBirthday(Long userId, Long characterId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        Character character = characterRepository.findByIdWithIpTitle(characterId)
+                .orElseThrow(() -> new CustomException(ErrorCode.CHARACTER_NOT_FOUND));
+        if (!hasValidBirthday(character)) {
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE, "생일이 유효한 캐릭터만 내 목록에 추가할 수 있습니다.");
+        }
+
+        try {
+            UserCharacterBirthday saved = userCharacterBirthdayRepository.saveAndFlush(
+                    UserCharacterBirthday.builder()
+                            .user(user)
+                            .character(character)
+                            .build()
+            );
+            return toResponse(saved.getCharacter());
+        } catch (DataIntegrityViolationException e) {
+            return userCharacterBirthdayRepository.findByUserIdAndCharacterId(userId, characterId)
+                    .map(UserCharacterBirthday::getCharacter)
                     .map(this::toResponse)
                     .orElseThrow(() -> e);
         }

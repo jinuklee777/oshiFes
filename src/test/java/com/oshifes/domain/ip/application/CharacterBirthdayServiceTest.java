@@ -4,11 +4,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oshifes.domain.ip.api.dto.AniListCharacterCandidateResponse;
 import com.oshifes.domain.ip.api.dto.CharacterBirthdayRegisterRequest;
 import com.oshifes.domain.ip.api.dto.CharacterBirthdayResponse;
+import com.oshifes.domain.ip.api.dto.CharacterBirthdaySearchAddRequest;
+import com.oshifes.domain.ip.api.dto.CharacterBirthdaySearchAddResponse;
 import com.oshifes.domain.ip.api.dto.CharacterBirthdaySearchResponse;
 import com.oshifes.domain.ip.dao.CharacterRepository;
 import com.oshifes.domain.ip.dao.IpTitleRepository;
+import com.oshifes.domain.ip.dao.UserCharacterBirthdayRepository;
 import com.oshifes.domain.ip.entity.Character;
 import com.oshifes.domain.ip.entity.IpTitle;
+import com.oshifes.domain.ip.entity.UserCharacterBirthday;
+import com.oshifes.domain.user.dao.UserRepository;
+import com.oshifes.domain.user.entity.User;
+import com.oshifes.domain.user.entity.UserRole;
 import com.oshifes.infrastructure.anilist.AniListCharacterResult;
 import com.oshifes.infrastructure.anilist.AniListClient;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,6 +27,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.support.TransactionOperations;
 
 import java.time.Clock;
@@ -44,6 +52,12 @@ class CharacterBirthdayServiceTest {
     private IpTitleRepository ipTitleRepository;
 
     @Mock
+    private UserCharacterBirthdayRepository userCharacterBirthdayRepository;
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
     private AniListClient aniListClient;
 
     private CharacterBirthdayService service;
@@ -54,6 +68,8 @@ class CharacterBirthdayServiceTest {
         service = new CharacterBirthdayService(
                 characterRepository,
                 ipTitleRepository,
+                userCharacterBirthdayRepository,
+                userRepository,
                 aniListClient,
                 new FallbackCharacterNameTranslator(),
                 new AniListSearchQueryGenerator(),
@@ -376,6 +392,81 @@ class CharacterBirthdayServiceTest {
     }
 
     @Test
+    void addToMyBirthdays_existingMappingReturnsCharacterWithoutDuplicateSave() {
+        Character character = character("나카노 아즈사", 11, 11);
+        UserCharacterBirthday userCharacterBirthday = UserCharacterBirthday.builder()
+                .user(user())
+                .character(character)
+                .build();
+        given(userCharacterBirthdayRepository.findByUserIdAndCharacterId(1L, 10L))
+                .willReturn(Optional.of(userCharacterBirthday));
+
+        CharacterBirthdayResponse result = service.addToMyBirthdays(1L, 10L);
+
+        assertThat(result.getNameKo()).isEqualTo("나카노 아즈사");
+        verify(userCharacterBirthdayRepository, never()).saveAndFlush(any(UserCharacterBirthday.class));
+    }
+
+    @Test
+    void addToMyBirthdays_savesSelectedCharacterFromGlobalDb() {
+        Character character = character("나카노 아즈사", 11, 11);
+        User user = user();
+        given(userCharacterBirthdayRepository.findByUserIdAndCharacterId(1L, 10L))
+                .willReturn(Optional.empty());
+        given(userRepository.findById(1L)).willReturn(Optional.of(user));
+        given(characterRepository.findByIdWithIpTitle(10L)).willReturn(Optional.of(character));
+        given(userCharacterBirthdayRepository.saveAndFlush(any(UserCharacterBirthday.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        CharacterBirthdayResponse result = service.addToMyBirthdays(1L, 10L);
+
+        assertThat(result.getNameKo()).isEqualTo("나카노 아즈사");
+        verify(userCharacterBirthdayRepository).saveAndFlush(any(UserCharacterBirthday.class));
+    }
+
+    @Test
+    void searchAndAddToMyBirthdays_dbResultExists_addsDbCharacterWithoutCallingAniList() {
+        Character character = character("나카노 아즈사", 11, 11);
+        ReflectionTestUtils.setField(character, "id", 10L);
+        User user = user();
+        given(characterRepository.searchByKeyword("아즈사")).willReturn(List.of(character));
+        given(userCharacterBirthdayRepository.findByUserIdAndCharacterId(1L, 10L))
+                .willReturn(Optional.empty());
+        given(userRepository.findById(1L)).willReturn(Optional.of(user));
+        given(characterRepository.findByIdWithIpTitle(10L)).willReturn(Optional.of(character));
+        given(userCharacterBirthdayRepository.saveAndFlush(any(UserCharacterBirthday.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        CharacterBirthdaySearchAddResponse result = service.searchAndAddToMyBirthdays(
+                1L,
+                new CharacterBirthdaySearchAddRequest("아즈사", null)
+        );
+
+        assertThat(result.added().getNameKo()).isEqualTo("나카노 아즈사");
+        assertThat(result.candidates()).isEmpty();
+        verify(aniListClient, never()).searchCharacters(any());
+    }
+
+    @Test
+    void searchAndAddToMyBirthdays_dbMiss_returnsAniListCandidatesWithoutSaving() {
+        AniListCharacterResult aniListResult = aniListResult("1", "中野 梓", "Azusa Nakano", 11, 11);
+        given(characterRepository.searchByKeyword("아즈사")).willReturn(List.of());
+        given(aniListClient.searchCharacters(any())).willReturn(List.of(aniListResult));
+
+        CharacterBirthdaySearchAddResponse result = service.searchAndAddToMyBirthdays(
+                1L,
+                new CharacterBirthdaySearchAddRequest("아즈사", null)
+        );
+
+        assertThat(result.added()).isNull();
+        assertThat(result.candidates())
+                .extracting(AniListCharacterCandidateResponse::getFullName)
+                .containsExactly("Azusa Nakano");
+        verify(characterRepository, never()).save(any(Character.class));
+        verify(userCharacterBirthdayRepository, never()).saveAndFlush(any(UserCharacterBirthday.class));
+    }
+
+    @Test
     void getBirthdays_february29BirthdayDoesNotThrowInNonLeapYear() {
         Character leapDay = character("윤년 생일", 2, 29);
         given(characterRepository.searchBirthdays(2, 29, PageRequest.of(0, 20)))
@@ -460,6 +551,12 @@ class CharacterBirthdayServiceTest {
                 .sourceType("ANILIST")
                 .externalId("1")
                 .build();
+    }
+
+    private User user() {
+        User user = User.createNewUser("google", "google-1", "테스트", null, UserRole.USER);
+        ReflectionTestUtils.setField(user, "id", 1L);
+        return user;
     }
 
     private AniListCharacterResult aniListResult(String id, String nativeName, String fullName,

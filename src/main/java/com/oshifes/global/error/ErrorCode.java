@@ -29,7 +29,9 @@ public enum ErrorCode {
     REVIEW_NOT_FOUND(HttpStatus.NOT_FOUND, "REVIEW-001", "존재하지 않는 리뷰입니다."),
 
     // IP
-    IP_TITLE_NOT_FOUND(HttpStatus.NOT_FOUND, "IP-001", "존재하지 않는 IP 타이틀입니다.");
+    IP_TITLE_NOT_FOUND(HttpStatus.NOT_FOUND, "IP-001", "존재하지 않는 IP 타이틀입니다."),
+    CHARACTER_NOT_FOUND(HttpStatus.NOT_FOUND, "IP-002", "존재하지 않는 캐릭터입니다."),
+    USER_CHARACTER_BIRTHDAY_NOT_FOUND(HttpStatus.NOT_FOUND, "IP-003", "내 생일 목록에 존재하지 않는 캐릭터입니다.");
 
     private final HttpStatus httpStatus;
     private final String code;
